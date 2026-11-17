@@ -13,3 +13,14 @@ File: `public/audio/pistol-fire.wav`
 The processed source was chosen for its short game-friendly attack. It is **not** a sound from Doom and is independent of the copyrighted Doom samples found elsewhere in the source project's repository.
 
 The sound file is bundled in this independent Kaos Arena repository.
+
+# User-supplied audio additions
+
+- `menu-music.mp3`: 2026-11-17 08-17-45(1).mp3, supplied by the user as menu music. Embedded locally, looping only in the menu, paused and rewound when a match begins.
+
+- `reload.mp3`: dragon-studio-gun-reload-2-511308.mp3 (reload).
+- `shot-blue.mp3`: freesound_community-9mm-pistol-shoot-short-reverb-7152.mp3 (blue team).
+- `shot-red.mp3`: mrfriends-pistol-shot-233473.mp3 (red team).
+
+These three recordings were supplied by the user. Their original providers' terms apply; no new license is asserted here.
+

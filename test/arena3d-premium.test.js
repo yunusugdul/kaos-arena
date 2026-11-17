@@ -54,7 +54,10 @@ test('detailed 3D environment and optional bloom remain visual-only',()=>{
   assert.match(detail,/shadowAt\(/);
   assert.match(view,/createArenaDetailKit/);
   assert.match(view,/UnrealBloomPass\.js/);
-  assert.match(view,/if\(composer&&g\.map\.name!=='SON ŞANS'\)composer\.render\(\);else renderer\.render\(scene,camera\)/);
+  // The fast renderer uses one direct pass for every map, including Last Chance.
+  const render=view.slice(view.indexOf('function renderScene(now)'),view.indexOf('let cachedW='));
+  assert.match(render,/renderer\.render\(scene,camera\)/);
+  assert.doesNotMatch(render,/composer\.render\(/);
 });
 test('all local Three.js addon module assets are reachable by the server',async()=>{
   await new Promise(resolve=>server.server.listen(0,'127.0.0.1',resolve));
@@ -79,3 +82,4 @@ test('all local Three.js addon module assets are reachable by the server',async(
     assert.equal((await fetch('http://127.0.0.1:'+port+'/vendor/addons/../../package.json')).status,404);
   }finally{await new Promise(resolve=>server.server.close(resolve));}
 });
+

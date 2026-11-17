@@ -39,20 +39,4 @@ test('Explosion draws for at least one second before the result overlay',()=>{
  assert.match(game,/if\(game\.phase==='explode'&&game\.explosionNoticeShown/);
  assert.match(view,/explosionFX\.visible=g\.phase==='explode'&&g\.phaseTime>1\.30/);
 });
-test('Bright stylized arena is visibly 3D, rounded and retains collider footprints',()=>{
- assert.match(detail,/palettes=\{/);
- assert.match(detail,/new THREE\.ExtrudeGeometry\(shape/);
- assert.match(detail,/roundedWall\(w,d,2\.68\)/);
- assert.match(view,/function buildClassicMap\(map\)/);
- assert.match(view,/key\.castShadow = true/);
- assert.match(view,/const humans=\[makeHuman/);
- assert.match(view,/baseDisc/);
-});
-test('Compact bomb, optimized Last Chance and optional postprocessing',()=>{
- assert.match(view,/bomb\.scale\.setScalar\(g\.bomb\.mode==='held'\?\.72:\.93\)/);
- assert.match(view,/shellMat=basic\('#141620'/);
- assert.match(view,/g\.map\.name!=='SON ŞANS'\)composer\.render/);
- assert.match(view,/currentQualityRatio=map\.name==='SON ŞANS'/);
- assert.match(detail,/instead of four expensive realtime point lights/);
- assert.doesNotMatch(detail,/transmission:\.10/);
-});
+

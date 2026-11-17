@@ -35,3 +35,4 @@ test('chat and online pauses are present, room selection unlocked upon leave',()
  assert.match(server,/d\.type==='chat'/);
  assert.match(server,/d\.type==='host_pause'/);
 });
+

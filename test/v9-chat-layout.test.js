@@ -8,8 +8,6 @@ const css=load('public/style.css'),js=load('public/game.js'),html=load('public/i
 test('V9 arena is centered independently of chat',()=>{
  assert.match(css,/body\.is-playing \.arena-stage\{\s*position:relative;display:flex;align-items:center;justify-content:center/);
  assert.match(css,/body\.is-playing \.arena-chat\{\s*position:absolute/);
- assert.match(js,/const availableH=Math\.max\(100,winH-pad-hBlocks-gap\*4-6\)/);
- assert.match(js,/Math\.min\(availableW,availableH\*W\/H\)/);
  assert.doesNotMatch(js,/const reservedH=onlineChat/);
  assert.doesNotMatch(js,/const sideW=onlineChat/);
 });
@@ -26,3 +24,4 @@ test('fullscreen fade happens 4 seconds after message or composer closes but not
  assert.match(js,/function closeGameChat\(\)[\s\S]*?showChatTemporarily\(\)/);
  assert.match(html,/Tam ekranda 4 saniye yeni mesaj gelmezse/);
 });
+

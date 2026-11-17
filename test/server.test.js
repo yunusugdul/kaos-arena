@@ -44,3 +44,4 @@ test('invalid room rules fallback to supported defaults',async()=>{
  assert.equal(a.rules.preset,'fusion');assert.equal(a.rules.arena,'cycle');assert.equal(a.rules.rounds,5);assert.equal(a.rules.upgrades,true);
  send(h,{type:'leave'});
 });
+

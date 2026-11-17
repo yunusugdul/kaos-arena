@@ -108,3 +108,4 @@ test('a blocked hit causes no damage; fifth clear hit defeats player and scores'
  assert.equal(victim.hp,0);assert.equal(victim.dead,true);
  assert.equal(victim.respawn,0);assert.equal(g.score[0],1);assert.equal(g.phase,'roundwin');assert.equal(g.roundWinner,0);
 });
+

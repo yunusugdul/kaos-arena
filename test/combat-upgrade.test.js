@@ -78,6 +78,5 @@ test('four-player UI and illustrated arena atmosphere are present and stay cosme
  assert.match(css,/four-player-match/);
  assert.match(arena,/const humans=\[makeHuman/);
  assert.match(arena,/makeHuman\('#ffc969','OYUNCU 4',3\)/);
- assert.match(arena,/Theme-specific peripheral scenery sits OUTSIDE original gameplay bounds/);
- assert.match(arena,/floor\.receiveShadow=false/);
 });
+

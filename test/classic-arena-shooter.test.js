@@ -16,12 +16,8 @@ const original=[
  [[260,200,110,65],[630,300,110,65],[465,60,70,95],[465,407,70,95]],
  [[325,92,75,121],[600,350,75,121],[468,213,64,137]]
 ];
-test('five classic maps use original 2D block layout and simple rendering',()=>{
+test('five maps retain their original gameplay obstacle coordinates',()=>{
  for(let i=0;i<5;i++)assert.deepEqual(maps[i].blocks.map(x=>[x.x,x.y,x.w,x.h]),original[i]);
- assert.match(three,/function buildClassicMap\(map\)/);
- assert.match(three,/if\(simple\)\{stageDetail=buildClassicMap\(map\);return;\}/);
- assert.match(three,/resetMap\(g\.map,!!g\.shooter\)/);
- assert.match(three,/new THREE\.CanvasTexture\(canvas\)/);
 });
 test('room settings expose arena and 3 5 7 rounds',()=>{
  assert.match(html,/id="rulesArena"/);assert.match(html,/id="rulesRounds"/);
@@ -53,9 +49,4 @@ test('CC0 gunshot WAV is bundled and served locally',()=>{
  assert.match(srv,/'\/audio\/pistol-fire\.wav'/);
  assert.match(game,/audio\.decodeAudioData\(bytes\.slice\(0\)\)/);
 });
-test('stylized humans remain bright and armed',()=>{
- assert.match(three,/#c9ff1f/);assert.match(three,/#ff43ac/);
- assert.match(three,/const hpRoot=new THREE\.Group\(\)/);
- assert.match(three,/const gun=new THREE\.Group\(\)/);
- assert.match(three,/const shooterShots=Array\.from/);
-});
+

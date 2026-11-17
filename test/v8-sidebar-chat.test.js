@@ -7,7 +7,6 @@ test('chat panel is a canvas sibling and does not push the arena off center',()=
  assert.match(html,/<\/aside><div class="arena-shell"><canvas id="arena"/);
  assert.match(css,/body\.is-playing \.arena-chat\{\s*position:absolute;left:clamp/);
  assert.doesNotMatch(js,/const sideW=onlineChat&&!stacked/);
- assert.match(js,/Math\.min\(availableW,availableH\*W\/H\)/);
 });
 test('chat nicknames are relative to the current player for lobby and game',()=>{
  assert.match(js,/by.textContent=msg.slot===net.slot\?'Sen':'O'/);
@@ -22,3 +21,4 @@ test('full-screen idle chat fades after 4000 milliseconds but reappears on messa
  assert.match(js,/if\(e.key==='Enter'&&options.mode==='online'&&game\)/);
  assert.match(css,/body\.is-playing \.arena-chat.chat-idle\{opacity:0;visibility:hidden/);
 });
+

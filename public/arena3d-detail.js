@@ -253,3 +253,4 @@ export function createArenaDetailKit(THREE, tools) {
   }
   return {build,dispose(){activeFloorTexture?.dispose();ambientOcclusion.dispose();ventDark.dispose();ventBright.dispose();}};
 }
+

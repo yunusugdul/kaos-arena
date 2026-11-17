@@ -147,15 +147,15 @@ function upgrade(req,socket,head){
   ws.pingTimer=setInterval(()=>{if(ws.closed){clearInterval(ws.pingTimer);return;}try{socket.write(wsFrame(9,'ping'));}catch{}},25000);
   socket.on('close',()=>clearInterval(ws.pingTimer));
 }
-const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.svg':'image/svg+xml','.wav':'audio/wav'};
+const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.svg':'image/svg+xml','.wav':'audio/wav','.mp3':'audio/mpeg','.glb':'model/gltf-binary'};
 const server=http.createServer((req,res)=>{
   if(req.url==='/health'){res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify({ok:true,rooms:rooms.size}));return;}
   let pathname;try{pathname=new URL(req.url,'http://localhost').pathname;}catch{res.writeHead(400).end();return;}
   if(pathname==='/')pathname='/index.html';
-  const pub=new Set(['/index.html','/favicon.svg','/game.js','/style.css','/arena3d.js','/arena3d-detail.js','/audio/pistol-fire.wav']);
+  const pub=new Set(['/index.html','/favicon.svg','/game.js','/style.css','/arena3d.js','/arena3d-detail.js','/menu-controls.js','/menu-scene.js','/menu.css','/render-batch.js','/armored-marine.js','/weapon-rig.js','/neon-world.js','/neon-preview.js','/neon.css','/industrial.css','/models/Soldier.glb','/audio/pistol-fire.wav','/audio/menu-music.mp3','/audio/reload.mp3','/audio/shot-blue.mp3','/audio/shot-red.mp3']);
   // Allow only the renderer and its official local Three.js postprocess addons.
   const threeBuild=/^\/vendor\/three\.(?:module|core)\.js$/.test(pathname);
-  const addon=/^\/vendor\/addons\/(?:postprocessing|shaders)\/[A-Za-z][A-Za-z0-9.-]*\.js$/.test(pathname);
+  const addon=/^\/vendor\/addons\/(?:postprocessing|shaders|loaders|utils|geometries)\/[A-Za-z][A-Za-z0-9.-]*\.js$/.test(pathname);
   if(!pub.has(pathname)&&!threeBuild&&!addon){res.writeHead(404).end('Not found');return;}
   const fp=threeBuild?path.join(__dirname,'node_modules','three','build',path.basename(pathname)):
     addon?path.join(__dirname,'node_modules','three','examples','jsm',pathname.slice('/vendor/addons/'.length)):
@@ -165,3 +165,4 @@ server.on('upgrade',upgrade);
 const cleaner=setInterval(cleanup,60000);cleaner.unref();
 if(require.main===module)server.listen(PORT,HOST,()=>console.log('KAOS ARENA online listening on '+HOST+':'+PORT));
 module.exports={server,rooms,safeName};
+

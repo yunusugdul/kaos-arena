@@ -13,3 +13,4 @@ test('evolution chooser keeps upgrades after round reset and remains authoritati
 test('no medals or replay system is added',()=>{
  assert.doesNotMatch(js,/replayBuffer|awardBadge|recordGif/);
 });
+

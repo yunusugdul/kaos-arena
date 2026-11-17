@@ -1,0 +1,54 @@
+/* Industrial Yard: full-bleed world, quiet floating HUD, readable earth tones. */
+:root{--lime:#c7c49a;--pink:#be8e7b;--dim:#a8a79e}
+body{background:#1e211d;background-image:none;color:#ece9df;font-family:'Segoe UI',Arial,sans-serif}
+.ambient,.noise{display:none}.logo-icon{background:#bbb790;color:#242820}.logo>span:last-child>span{color:#c3bf96}.status-dot,.eyebrow i{background:#c3bf96;box-shadow:none}.head-right{color:#a8a99f}.hero h1 em{color:#ccc8a2}.hero h1{font-size:clamp(28px,3.5vw,54px);margin-bottom:14px;letter-spacing:-2px}.hero-text{line-height:1.7;font-size:13px;margin-bottom:26px}.eyebrow{color:#a1a99a}.eyebrow>span{border-color:#454b40}.showcase{background:#373b31;border-color:#575d4e;box-shadow:0 20px 50px #0003}.showcase-top{color:#babdaf;padding-bottom:12px}.showcase-top i{background:#b4be9e;box-shadow:none}.showcase-scene{aspect-ratio:1000/650}.showcase-bottom{background:#282e25}.showcase-bottom small{color:#969f8e}.live-tag{color:#c3c9b1;border-color:#727e5c;background:#62714b20}.hero-stats,.mini-guide,.section-tail{display:none}.landing{padding-top:38px;gap:40px}.site-head{height:75px}.play-card{background:#292f27;border-color:#525b48;box-shadow:0 15px 55px #0002}.card-top h2{font-size:27px;color:#edeee5}.card-top h2 span,.big-sticker{color:#c9c59d}.big-sticker{border-color:#697059}.card-top small{color:#9ca58e}.form-label,.mode-label{color:#b4bca8}#nick,.rules-editor select,.shooter-extra-settings select{background:#1c221b;border-color:#4e5845;color:#e2e6d9}.mode-btn{background:#30362d;border-color:#56604c;color:#bcc4ae}.mode-btn small{color:#9ba68e}.mode-btn.selected{border-color:#a8b388;background:#c6d39e0e;color:#e1e7c8}.rules-heading b{color:#c9d1ba}.weapon-help{color:#a0ad91}.diff-buttons button.selected{border-color:#9ca97d;background:#9baa7d20;color:#d4debd}.start-btn,.room-primary{background:#c8c7a2;color:#24271d;box-shadow:none}.start-btn:hover{background:#dcd9b7;box-shadow:none}.play-foot{color:#949f86}.footer{color:#8b9683}.head-audio{background:#2b3227;border-color:#56604a}.online-room{background:#20261d;border-color:#505b43}
+/* The canvas owns the viewport. UI floats above it and never shrinks the field. */
+body.is-playing{background:#8a806c;overflow:hidden;height:100dvh}
+body.is-playing .game-screen{position:fixed;inset:0;display:block!important;max-width:none;width:100vw;height:100dvh;padding:0;margin:0;overflow:hidden}
+body.is-playing .arena-stage{position:absolute;inset:0;display:block;width:100%;height:100%;min-height:0;margin:0}
+body.is-playing .arena-shell,body.shooter-mode.is-playing .arena-shell{position:absolute;inset:0;margin:0;width:100%!important;height:100%!important;max-width:none;max-height:none;align-self:auto;border:0;border-radius:0;box-shadow:none;background:#b6aa91;overflow:hidden}
+body.is-playing .arena-shell canvas{width:100%!important;height:100%!important;aspect-ratio:auto;object-fit:fill}
+body.is-playing .arena-webgl{position:absolute;inset:0;z-index:0}
+body.is-playing #arena{position:absolute;inset:0;z-index:1;background:transparent;touch-action:none}
+body.is-playing .game-nav{position:absolute;top:16px;left:18px;right:18px;z-index:35;display:flex;justify-content:space-between;align-items:flex-start;min-height:0;margin:0;pointer-events:none}
+body.is-playing .game-nav button{pointer-events:auto}
+body.is-playing .game-identity{display:none}
+body.is-playing .nav-actions{display:flex;gap:6px;margin-left:auto}
+body.is-playing .nav-button{display:grid;place-items:center;min-width:35px;height:34px;padding:7px 11px;border:1px solid #c5c6b53b;border-radius:5px;background:#23271fe8;box-shadow:0 2px 10px #0002;color:#e9e8d9;font:600 13px 'Segoe UI',sans-serif;backdrop-filter:blur(12px)}
+body.is-playing .scoreline{position:absolute;top:15px;left:50%;transform:translateX(-50%);z-index:30;display:grid;grid-template-columns:minmax(0,1fr) 72px minmax(0,1fr);gap:4px;width:min(510px,calc(100vw - 360px));margin:0;pointer-events:none;filter:drop-shadow(0 3px 7px #0003)}
+body.is-playing .scorebox,body.is-playing .scorebox.p1{display:flex;align-items:center;gap:9px;min-width:0;min-height:48px;padding:8px 12px;border:1px solid #c0c4a832;border-radius:5px;background:#252a21ed;box-shadow:none!important}
+body.is-playing .scorebox.p1{border-color:#c2a69440;background:#2d2821ed}
+body.is-playing .profile-emoji{display:none}
+body.is-playing .profile-name{min-width:0;flex:1}
+body.is-playing .profile-name b{font:600 10px 'Segoe UI',sans-serif;max-width:155px;color:#eeeede;letter-spacing:.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.is-playing .profile-name>span{display:none}
+body.is-playing .scorebox strong{font:700 20px 'Segoe UI',sans-serif;color:#d3dbb1;line-height:1}
+body.is-playing .scorebox.p1 strong{color:#d4af98}
+body.is-playing .shooter-hp-track{height:4px;margin-top:6px;border:0;background:#05080077;width:100%;box-shadow:none}
+body.is-playing .timerbox{display:flex;justify-content:center;align-items:center;width:72px;min-width:0!important;max-width:72px;padding:6px;border:1px solid #d3cfb82c;border-radius:5px;background:#272a21ed}
+body.is-playing .timer-meta{display:flex;font:600 9px 'Segoe UI',sans-serif;letter-spacing:.3px;color:#dfdfc9;text-align:center;line-height:1.4}
+body.is-playing #fuseLabel,body.is-playing .timer-main{display:none}
+body.is-playing .fuse-container{display:none!important}
+body.is-playing .bottom-hud{position:absolute;bottom:18px;left:20px;right:20px;z-index:30;display:flex;justify-content:space-between;align-items:flex-end;min-height:0;margin:0;gap:12px;pointer-events:none}
+body.is-playing .combat-state{border:1px solid #b9c0a735;background:#262c20ed;border-radius:5px;padding:9px 14px;min-width:0;max-width:240px;box-shadow:0 3px 10px #0002}
+body.is-playing .bomb-status{font:600 11px 'Segoe UI',sans-serif;letter-spacing:.2px;color:#e7e8ce!important;white-space:nowrap}
+body.is-playing #tipText{display:none}
+body.is-playing .ability-bars{display:flex;flex:none;gap:5px;width:auto;min-width:0}
+body.is-playing .ability{display:grid;grid-template-columns:auto 32px;gap:6px;align-items:center;min-height:35px;min-width:0;background:#262c20ed;border:1px solid #bac2aa33;border-radius:5px;padding:7px 8px}
+body.is-playing .ability:first-child{display:none}
+body.is-playing .ability-key{min-width:22px;min-height:18px;height:18px;border:0;background:none;box-shadow:none;padding:0;font:600 9px 'Segoe UI',sans-serif;color:#e0e5cd;border-radius:0}
+body.is-playing .ability b{display:none}
+body.is-playing .meter{width:32px;height:3px;margin:0;background:#66735660;border-radius:1px}
+body.is-playing .meter span,body.shooter-mode.is-playing .ability.special .meter span{background:#c3cd9f;box-shadow:none}
+body.is-playing .game-bottom{display:none}
+body.is-playing .multi-score{position:absolute;top:16px;left:50%;transform:translateX(-50%);width:min(650px,calc(100vw - 370px));z-index:30;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:0}
+body.is-playing .multi-score-player{background:#252b21ed;border:1px solid #b8c1a538;box-shadow:none;border-radius:5px;padding:9px 8px;gap:5px;min-height:41px}
+body.is-playing .multi-player-name{font:600 9px 'Segoe UI',sans-serif}.multi-player-kills{font-size:10px}.multi-player-hp{height:4px;border:0}
+body.is-playing .multi-target{position:absolute;top:65px;left:50%;transform:translateX(-50%);z-index:30;background:#292d22d9;color:#dedfc9;font:600 8px 'Segoe UI',sans-serif;padding:5px 9px;width:max-content}
+body.is-playing .arena-chat{z-index:40;left:18px;bottom:75px;pointer-events:none}
+.arena-overlay{z-index:45;background:#252b1e50;backdrop-filter:blur(3px)}.overlay-window{background:#242a20ed;border-color:#a8ae8a70;box-shadow:0 15px 50px #0004}.overlay-window h2{font:700 clamp(24px,3vw,36px) 'Segoe UI',sans-serif;letter-spacing:-1px}.overlay-window p{font-size:12px;line-height:1.6;max-width:330px;margin-left:auto;margin-right:auto}.overlay-eyebrow{color:#c4c8a4}.overlay-icon{display:none}.overlay-window button{background:#c6c6a0!important;color:#24291d!important;border-color:#c6c6a0!important;box-shadow:none!important}.event-callout{background:#323b25e8;color:#d6dfc4;border-color:#899974}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid #c7ccab;outline-offset:2px}
+@media(max-width:900px){body.is-playing .scoreline{top:57px;width:min(460px,calc(100vw - 28px))}body.is-playing .game-nav{top:10px;left:12px;right:12px}body.is-playing .multi-score{top:55px;width:calc(100vw - 24px)}body.is-playing .multi-target{top:105px}.landing{gap:25px}.hero h1{font-size:35px}.play-card{padding:22px}}
+@media(max-width:760px){.site-head{height:62px}.landing{padding-top:25px}.hero h1{margin-top:17px;font-size:34px}.hero-text{margin-bottom:18px}.showcase-scene{aspect-ratio:1000/600}.hero-stats,.mini-guide{display:none}.showcase-bottom{padding:13px 15px}body.is-playing .scorebox{min-height:43px;padding:7px 9px}body.is-playing .profile-name b{font-size:9px}body.is-playing .scorebox strong{font-size:18px}body.is-playing .timer-meta{font-size:8px}body.is-playing .bottom-hud{left:12px;right:12px;bottom:12px}body.is-playing .combat-state{padding:8px 10px}body.is-playing .bomb-status{font-size:9px}body.is-playing .ability{grid-template-columns:auto 20px;padding:7px 6px;gap:4px}body.is-playing .meter{width:20px}body.is-playing .ability-key{font-size:8px}.overlay-window p{font-size:11px}}
+@media(pointer:coarse){body.is-playing .game-screen .touch-controls{display:block!important;z-index:20}body.is-playing .bottom-hud{bottom:148px}.touch-button{background:#424b36dc!important;color:#eef0dc!important;border-color:#bbc4a475!important;box-shadow:none}.joystick{background:#29322255;border-color:#bbc4a475}.joystick-stick{background:#bbc4a4a0;border-color:#e1e6cd}.touch-buttons small{font-size:8px}}
+@media(max-height:560px) and (orientation:landscape){body.is-playing .scoreline{top:10px;width:min(400px,calc(100vw - 290px))}body.is-playing .scorebox{min-height:38px}body.is-playing .multi-score{top:10px;width:calc(100vw - 300px)}body.is-playing .multi-target{top:55px}body.is-playing .bottom-hud{bottom:8px}body.is-playing .game-screen .touch-controls{transform:scale(.8);transform-origin:bottom right}}

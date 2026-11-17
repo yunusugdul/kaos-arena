@@ -34,3 +34,4 @@ test('host pause/unpause broadcasts to other player, guest cannot spoof host pau
  const resume=wait(b,d=>d.type==='host_pause'&&d.paused===false);send(a,{type:'host_pause',paused:false});assert.equal((await resume).paused,false);
  const disconnected=wait(b,d=>d.type==='presence'&&d.players[0].online===false);a.close();assert.equal((await disconnected).hostPaused,true);
 });
+

@@ -10,7 +10,7 @@ const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
 const pkg=require('../package.json');
 
 test('Three.js uses local package, not an external CDN',()=>{
- assert.equal(pkg.dependencies.three,'0.160.1');
+ assert.equal(pkg.dependencies.three,'0.181.1');
  assert.match(three,/from '\/vendor\/three\.module\.js'/);
  assert.match(server,/const threeBuild=/);
  assert.match(server,/const addon=/);
@@ -36,3 +36,4 @@ test('3D canvas layers below existing input HUD and preserves original fallback'
  assert.match(game,/ctx\.save\(\);if\(shakes>0/);
  assert.match(fs.readFileSync(path.join(root,'public/style.css'),'utf8'),/\.arena-webgl/);
 });
+

@@ -2,6 +2,10 @@
 // THREE is installed locally and served by the existing Node web server.
 import * as THREE from '/vendor/three.module.js';
 import {createArenaDetailKit} from '/arena3d-detail.js';
+import {createNeonWorld} from '/neon-world.js';
+import {createArmoredMarine} from '/armored-marine.js';
+import {createWeaponRig} from '/weapon-rig.js';
+import {batchRigidMeshes} from '/render-batch.js';
 
 const S = 25, WIDTH = 1000, HEIGHT = 562;
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -15,40 +19,52 @@ export function createArena3D(inputCanvas) {
   const renderer = new THREE.WebGLRenderer({antialias:true, alpha:false, powerPreference:'high-performance'});
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.20;
+  renderer.toneMappingExposure = 1.05;
   const lowPower = matchMedia('(pointer:coarse)').matches || (navigator.hardwareConcurrency || 8) <= 4;
-  const pixelRatio=Math.min(window.devicePixelRatio||1,lowPower?1.05:1.4);
+  const pixelRatio=Math.min(window.devicePixelRatio||1,lowPower?.85:1);
   renderer.setPixelRatio(pixelRatio);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false;
   renderer.domElement.className = 'arena-webgl';
+  renderer.domElement.dataset.engine='three-industrial';
   renderer.domElement.setAttribute('aria-hidden','true');
   shell.insertBefore(renderer.domElement, inputCanvas);
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#0b0d20');
-  scene.fog = new THREE.FogExp2('#0b0d20', .011);
+  scene.background = new THREE.Color('#b6aa91');
+  scene.fog = new THREE.FogExp2('#b6aa91', .003);
   const camera = new THREE.OrthographicCamera(-22,22,12.4,-12.4,.1,170);
   // High-angle orthographic framing restores almost the full 2D arena footprint.
   // Keeping the same 1000 x 562 plane also preserves mouse raycast targeting.
-  const CAMERA_HEIGHT=56, CAMERA_DEPTH=16;
+  const CAMERA_HEIGHT=48, CAMERA_DEPTH=32;
   camera.position.set(0,CAMERA_HEIGHT,CAMERA_DEPTH);
   camera.lookAt(0,0,0);
-  const hemi = new THREE.HemisphereLight('#edf7ff', '#344052', 1.8);
+  const hemi = new THREE.HemisphereLight('#e0e8ed', '#675944', 2.0);
   scene.add(hemi);
-  const key = new THREE.DirectionalLight('#fff6e7', 2.4);
-  key.position.set(-18,30,11);
+  const key = new THREE.DirectionalLight('#ffe2ad', 3.2);
+  key.position.set(-18,27,-15);
   key.castShadow = true;
-  key.shadow.mapSize.set(lowPower ? 1024 : 2048, lowPower ? 1024 : 2048);
+  key.shadow.mapSize.set(1024,1024);
   key.shadow.camera.left = -27; key.shadow.camera.right = 27;
   key.shadow.camera.top = 19; key.shadow.camera.bottom = -19;
   key.shadow.camera.near = 1; key.shadow.camera.far = 80;
   key.shadow.bias = -.0003;
   key.shadow.normalBias = .018;
   scene.add(key);
-  const rim = new THREE.DirectionalLight('#b7a5ff', 1.25);
+  const rim = new THREE.DirectionalLight('#bdd2e0', .48);
   rim.position.set(18,15,-12); scene.add(rim);
-  const fill = new THREE.DirectionalLight('#a0dfff',.80);
+  const fill = new THREE.DirectionalLight('#e8d7b6',.45);
   fill.position.set(10,8,17);scene.add(fill);
+
+  
+  const studio=new THREE.Scene();studio.background=new THREE.Color('#a6a6a1');
+  for(const [x,y,z,w,h,hex] of [[-6,7,3,7,9,'#e9f3ff'],[6,5,-4,4,7,'#b3c5ce'],[0,9,0,5,5,'#ffffff']]){
+    const card=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({color:hex,side:THREE.DoubleSide}));
+    card.position.set(x,y,z);card.lookAt(0,0,0);studio.add(card);
+  }
+  const pmrem=new THREE.PMREMGenerator(renderer),environment=pmrem.fromScene(studio,0);
+  scene.environment=environment.texture;pmrem.dispose();
+  studio.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
 
   const stage = new THREE.Group(); scene.add(stage);
   const effects = new THREE.Group(); scene.add(effects);
@@ -90,252 +106,47 @@ export function createArena3D(inputCanvas) {
     return m;
   }
   function disposeGroup(group) {
-    group.traverse(o => { if(o.isMesh && !Object.values(geometries).includes(o.geometry)) o.geometry?.dispose();
-      if(o.isMesh) {const mm = Array.isArray(o.material)?o.material:[o.material]; for(const m of mm) if(m && ![arenaFloor,linesMat,wallBody,platformMaterial].includes(m)) m.dispose();}});
+    group.traverse(o => { if(o.isInstancedMesh)o.dispose();
+      if(o.isMesh && !o.geometry.userData.neonShared && !Object.values(geometries).includes(o.geometry)) o.geometry?.dispose();
+      if(o.isMesh) {const mm = Array.isArray(o.material)?o.material:[o.material]; for(const m of mm) if(m && !m.userData.neonShared && ![arenaFloor,linesMat,wallBody,platformMaterial].includes(m)) m.dispose();}});
     group.clear();
   }
   const detailKit=createArenaDetailKit(THREE,{stage,world,block,mesh,track,ring,geometries,lowPower});
+  const neonWorld=createNeonWorld(THREE,{stage,world,mesh,block,ring,geometries,lowPower});
   let stageDetail=null;
   let currentQualityRatio=pixelRatio;
   let classicMapTexture=null;
-  function buildClassicMap(map){
-    // The established classic arena layouts, backdrops, flat central circle and
-    // low-profile solid obstacles. Player/gun models remain full 3D.
-    scene.background.set(map.floor).lerp(color('#090c1d'),.33);
-    scene.fog.color.copy(scene.background);
-    currentQualityRatio=pixelRatio;
-    renderer.setPixelRatio(pixelRatio);composer?.setPixelRatio(pixelRatio);
-    const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=562;
-    const c=canvas.getContext('2d');
-    c.fillStyle=map.floor;c.fillRect(0,0,1000,562);
-    const grad=c.createRadialGradient(500,281,35,500,281,560);
-    grad.addColorStop(0,map.glow+'34');grad.addColorStop(1,'#090b1d');
-    c.fillStyle=grad;c.fillRect(0,0,1000,562);
-    c.strokeStyle='#d8e4ff0c';c.lineWidth=1;
-    for(let x=0;x<=1000;x+=52){c.beginPath();c.moveTo(x,0);c.lineTo(x,562);c.stroke();}
-    for(let y=0;y<=562;y+=52){c.beginPath();c.moveTo(0,y);c.lineTo(1000,y);c.stroke();}
-    c.strokeStyle=map.glow+'25';c.lineWidth=3;c.setLineDash([12,14]);
-    c.beginPath();c.arc(500,281,190,0,Math.PI*2);c.stroke();c.setLineDash([]);
-    c.strokeStyle=map.glow+'42';c.lineWidth=4;
-    c.strokeRect(23,23,954,516);
-    // Low-contrast painted lanes, spawn markings and surface grain. Entirely cosmetic.
-    for(const [x,y,hex] of [[155,120,'#c9ff4f'],[845,442,'#ff67cb'],[155,442,'#77ecff'],[845,120,'#ffd17d']]){
-      c.strokeStyle=hex+'70';c.lineWidth=3;c.beginPath();c.arc(x,y,48,0,Math.PI*2);c.stroke();
-      c.globalAlpha=.3;c.lineWidth=1;c.beginPath();c.arc(x,y,57,0,Math.PI*2);c.stroke();c.globalAlpha=1;
-    }
-    let seed=map.name.length*1729;
-    for(let i=0;i<500;i++){
-      seed=(seed*1664525+1013904223)>>>0;const x=30+seed/4294967296*940;
-      seed=(seed*1664525+1013904223)>>>0;const y=28+seed/4294967296*503;
-      c.fillStyle=i%4===0?'#ffffff0b':'#00000010';c.fillRect(x,y,i%7===0?4:2,1);
-    }
-    classicMapTexture?.dispose();
-    classicMapTexture=new THREE.CanvasTexture(canvas);
-    classicMapTexture.colorSpace=THREE.SRGBColorSpace;
-    const floor=mesh(new THREE.PlaneGeometry(WIDTH/S,HEIGHT/S),
-       basic('#ffffff',{map:classicMapTexture,toneMapped:false}),stage,0,-.02,0);
-    floor.rotation.x=-Math.PI/2;floor.castShadow=false;floor.receiveShadow=false;
-    const pale=mat('#322d4c',{metalness:.12,roughness:.79});
-    const side=mat(map.glow,{metalness:.07,roughness:.63});
-    const top=mat('#aaa0c7',{metalness:.03,roughness:.75});
-    // Simple shallow soft-edged arena walls that mirror the 2D original.
-    for(const [x,z,w,d] of [[0,-11.3,40.6,.27],[0,11.3,40.6,.27],[-20.14,0,.27,23],[20.14,0,.27,23]]){
-      block(stage,x,.28,z,w,.52,d,pale);
-      track(stage,x,z,w,d,map.glow,.57,.72);
-    }
-    for(const b of map.blocks){
-      const p=world(b.x+b.w/2,b.y+b.h/2),w=b.w/S,d=b.h/S;
-      block(stage,p.x,.29,p.z,w,.58,d,pale);
-      block(stage,p.x,.60,p.z,w*.95,.08,d*.95,top);
-      for(const sign of [-1,1]){
-        track(stage,p.x,p.z+sign*(d*.46),w*.80,.05,map.glow,.67,.68);
-      }
-    }
-    for(const feature of map.features){
-      const p=world(feature.x,feature.y,.06),radius=feature.r/S;
-      if(feature.kind==='portal'){
-        const a=ring(stage,map.glow,radius);a.position.set(p.x,.08,p.z);
-        const b=ring(stage,'#eabaff',radius*.74);b.position.set(p.x,.12,p.z);
-      }else if(feature.kind==='bumper'){
-        const circle=mesh(geometries.cylinder,side,stage,p.x,.22,p.z,[radius,.24,radius]);
-        circle.castShadow=false;
-        const rim=ring(stage,'#fff0b1',radius*.90);rim.position.set(p.x,.48,p.z);
-      }else if(feature.kind==='ice'){
-        const ice=ring(stage,'#adf6ff',radius);ice.position.set(p.x,.055,p.z);
-        ice.material.opacity=.42;
-      }
-    }
-    // Theme-specific peripheral scenery sits OUTSIDE original gameplay bounds.
-    // No obstacles or hitboxes are introduced.
-    const themes={
-      'NEON PARK':['#a58aff','#5e408d'],
-      'BUZ LABİRENTİ':['#a6f4ff','#2f7aab'],
-      'PORTAL PARTİSİ':['#ff8bdb','#9b4898'],
-      'SEK SEK':['#ffd28c','#a76b68'],
-      'SON ŞANS':['#d3ff72','#56966f']
-    };
-    const [highlight,secondary]=themes[map.name]||themes['NEON PARK'];
-    const props=[];
-    const steel=mat('#2d3452',{metalness:.33,roughness:.53});
-    const trim=basic(highlight,{toneMapped:false,transparent:true,opacity:.68,depthWrite:false});
-    // Side light-boxes and futuristic arena-broadcast totems.
-    for(const x of [-20.50,20.50]){
-      for(const z of [-9,-4.5,0,4.5,9]){
-        const stem=block(stage,x,.66,z,.24,1.28,.43,steel);
-        stem.castShadow=false;
-        const signal=block(stage,x,1.25,z,.18,.26,.31,trim);
-        signal.castShadow=false;props.push(signal);
-      }
-    }
-    for(const z of [-11.55,11.55])for(const x of [-15,-7.5,0,7.5,15]){
-      const marker=block(stage,x,.20,z,1.65,.25,.34,steel);marker.castShadow=false;
-      const led=track(stage,x,z,1.50,.065,highlight,.36,.77);
-      props.push(led);
-    }
-    // Ambient decorations are flat or outside bounds to keep the original arena playable.
-    if(map.name==='BUZ LABİRENTİ'){
-      for(const x of [-20.60,20.60])for(const z of [-11.7,11.7]){
-        const crystal=mesh(geometries.crystal,mat('#9beefa',{metalness:.08,roughness:.26,
-          emissive:'#255b85',emissiveIntensity:.2}),stage,x,1.05,z,[.4,1.05,.39]);
-        crystal.castShadow=false;
-      }
-    }
-    if(map.name==='PORTAL PARTİSİ'){
-      for(const x of [-20.65,20.65])for(const z of [-8,8]){
-        const portal=ring(stage,'#ff92f0',.8);portal.position.set(x,1.5,z);
-        portal.rotation.x=0;props.push(portal);
-      }
-    }
-    return {update(time){for(let i=0;i<props.length;i++){
-      if(props[i].material?.opacity!==undefined)
-        props[i].material.opacity=.57+.13*Math.sin(time*1.7+i*.65);
-    }}};
-  }
-  function resetMap(map,simple=false) {
-
+  function resetMap(map) {
     disposeGroup(stage);
-    accent=map.glow; lastMap=map.name;
-    if(simple){stageDetail=buildClassicMap(map);return;}
-    const palette={
-      'NEON PARK':'#2d3262','BUZ LABİRENTİ':'#2d718e','PORTAL PARTİSİ':'#513668',
-      'SEK SEK':'#674663','SON ŞANS':'#2e6150'
-    };
-    scene.background.set(palette[map.name]||map.floor).lerp(color('#0b1422'),.36);
-    scene.fog.color.copy(scene.background);
-    arenaFloor.color.set(palette[map.name]||map.floor);
-    // Last Chance has the most expensive frozen floor feature. Keep a smaller back buffer
-    // and skip optional bloom for smooth, predictable input/animation frame times.
-    currentQualityRatio=map.name==='SON ŞANS'?Math.min(pixelRatio,lowPower?.85:1.05):pixelRatio;
-    renderer.setPixelRatio(currentQualityRatio);
-    composer?.setPixelRatio(currentQualityRatio);
-    const deck=block(stage,0,-.46,0,42.4,.72,24.9,platformMaterial);
-    deck.castShadow=false;
-    block(stage,0,-.075,0,40.2,.12,22.6,arenaFloor).castShadow=false;
-    // The render has depth, but every obstacle footprint is identical to the 2D collider.
-    for(let x=-19.6;x<=19.7;x+=1.6)track(stage,x,0,.022,22.48,'#ffffff',-.008,.065);
-    for(let z=-10.9;z<=11;z+=1.6)track(stage,0,z,40,.022,'#ffffff',-.008,.065);
-    const edge=basic(map.glow,{toneMapped:false});
-    for(const [x,z,w,d] of [[0,-11.25,40.4,.1],[0,11.25,40.4,.1],[-20.05,0,.1,22.55],[20.05,0,.1,22.55]])
-      track(stage,x,z,w,d,map.glow,.13);
-    // Visible 3D guard rails sit outside the actual playable collision boundary.
-    for(const [x,z,w,d] of [[0,-11.47,40.9,.28],[0,11.47,40.9,.28],[-20.35,0,.3,23.1],[20.35,0,.3,23.1]]) {
-      block(stage,x,.48,z,w,.68,d,wallBody);
-      track(stage,x,z,w,d,map.glow,.84);
-    }
-    // Rounded pads and light columns are decoration outside the playable bounds.
-    for(const x of [-20.35,20.35]) for(const z of [-11.47,11.47]) {
-      block(stage,x,1.03,z,.72,1.1,.72,wallBody);
-      mesh(geometries.sphere,basic(map.glow,{toneMapped:false}),stage,x,1.62,z,[.25,.25,.25]);
-    }
-    for (const b of map.blocks) {
-      const cx=(b.x+b.w/2-500)/S, cz=(b.y+b.h/2-281)/S;
-      const w=b.w/S,d=b.h/S;
-      // Original collision footprint is retained; the detailed cartoon wall caps this core.
-      block(stage,cx,1.2,cz,w,2.4,d,wallBody);
-    }
-    for(const f of map.features) {
-      const q=world(f.x,f.y,.065),radius=f.r/S;
-      if(f.kind==='portal') {
-        const pad=mesh(geometries.cylinder,mat('#302348',{metalness:.55,roughness:.29}),stage,q.x,.07,q.z,[radius,.07,radius]);
-        pad.castShadow=false;
-        const a=ring(stage,'#b69bff',radius);a.position.set(q.x,.15,q.z);
-        const b=ring(stage,'#ff7dc6',radius*.73);b.position.set(q.x,.18,q.z);
-        // Keep Three.js mesh references out of the game's JSON-serialized map.
-      } else if(f.kind==='bumper') {
-        mesh(geometries.cylinder,mat('#ba7d48',{metalness:.55}),stage,q.x,.22,q.z,[radius,.43,radius]);
-        const rim=ring(stage,'#ffdd87',radius*1.06);rim.position.set(q.x,.48,q.z);
-        mesh(geometries.sphere,basic('#ffe4a3',{toneMapped:false}),stage,q.x,.54,q.z,[.25,.25,.25]);
-      } else if(f.kind==='ice') {
-        // An inexpensive ground decal, not a giant translucent 3D cylinder.
-        const rr=ring(stage,'#bdfbff',radius);rr.position.set(q.x,.04,q.z);rr.material.opacity=.5;
-      }
-    }
-    // Subtle arena landmark at the centre, stays below the playing surface.
-    const center=ring(stage,map.glow,6.9);center.position.y=.03;center.material.opacity=.16;
-    stageDetail=detailKit.build(map);
+    accent=map.glow;lastMap=map.name;
+    scene.background.set('#b6aa91');scene.fog.color.copy(scene.background);
+    renderer.setPixelRatio(currentQualityRatio);composer?.setPixelRatio(currentQualityRatio);
+    stageDetail=neonWorld.neonArena(map);
+    batchRigidMeshes(THREE,stage);
+    stage.updateWorldMatrix(true,true);
+    stage.traverse(o=>{o.matrixAutoUpdate=false;o.matrixWorldAutoUpdate=false;});
+    renderer.shadowMap.needsUpdate=true;
   }
 
   function makeHuman(hex,name,id) {
     const root = new THREE.Group(); scene.add(root);
     const model=new THREE.Group();root.add(model);
-    const suit=mat(['#c9ff1f','#ff43ac','#52dfff','#ffbe46'][id]||'#c9ff1f',{metalness:.04,roughness:.53,emissive:['#94c800','#e91e77','#0c93b3','#bd6411'][id]||'#94c800',emissiveIntensity:.76});
-    const suitDark=mat(['#45a947','#e24d97','#318da5','#c18032'][id]||'#45a947',{metalness:.04,roughness:.6,emissive:['#2b8423','#ae2a70','#15547d','#955117'][id]||'#2b8423',emissiveIntensity:.32});
-    const skin=mat(['#f1bd98','#edb08b','#f5bd92','#bf8c68'][id]||'#f1bd98',{roughness:.82,metalness:0});
-    const hair=mat(id===0?'#242136':'#30253a',{roughness:.87,metalness:0});
-    const bright=basic(hex,{toneMapped:false});
-    // Humanoid: head, torso, both arms and legs - all narrower than the original collision diameter.
-    mesh(geometries.capsule,suit,model,0,1.34,0,[.96,1.08,.66]);
-    block(model,0,1.17,.35,.72,.23,.12,suitDark);
-    mesh(geometries.sphere,skin,model,0,2.20,.03,[.31,.32,.31]);
-    mesh(geometries.sphere,hair,model,0,2.43,-.05,[.33,.17,.32]);
-    for(const side of [-1,1]) {
-      mesh(geometries.sphere,hair,model,side*.15,2.23,.334,[.038,.043,.025]);
-    }
-    const arms=[],legs=[];
-    for(const side of [-1,1]) {
-      const arm=new THREE.Group(); arm.position.set(side*.53,1.73,0);model.add(arm);
-      mesh(geometries.capsule,suitDark,arm,side*.13,-.3,0,[.4,.7,.42]);
-      mesh(geometries.sphere,skin,arm,side*.24,-.68,.07,[.17,.17,.17]);
-      arms.push(arm);
-      const leg=new THREE.Group();leg.position.set(side*.24,.95,0);model.add(leg);
-      mesh(geometries.capsule,suitDark,leg,0,-.37,0,[.55,.79,.54]);
-      mesh(geometries.box,hair,leg,0,-.77,.14,[.4,.22,.66]);
-      legs.push(leg);
-    }
-    const emblem=mesh(geometries.sphere,bright,model,0,1.42,.46,[.15,.15,.045]);
-    emblem.castShadow=false;
+    const armor=createArmoredMarine(THREE,model,id);
+    const {arms,legs}=armor;const tails=[];
     const shadow=mesh(new THREE.CircleGeometry(.95,24),basic('#000000',{transparent:true,opacity:.26,depthWrite:false}),root,0,.01,0);
     shadow.rotation.x=-Math.PI/2; shadow.castShadow=false;
-    const a=ring(root,hex,1.12);a.position.y=.07;a.material.opacity=1;
+    const a=ring(root,id%2?'#bb8168':'#b3b681',.72);a.position.y=.025;a.material.opacity=.35;
     const baseDisc=mesh(new THREE.CylinderGeometry(.98,.98,.10,24),basic(hex,{toneMapped:false}),root,0,.035,0);
-    baseDisc.castShadow=false;baseDisc.material.transparent=true;baseDisc.material.opacity=.47;
+    baseDisc.castShadow=false;baseDisc.material.transparent=true;baseDisc.material.opacity=.025;
     const carry=ring(root,'#ffbd64',1.31);carry.position.y=.09;
     const defense=ring(root,'#72efff',1.55);defense.position.y=.17;
     const charge=ring(root,'#e3ff65',1.46);charge.position.y=.13;
-    // High detail combat suit without changing the old 21px physical collision radius.
-    const alloy=mat(id===0?'#293d3b':'#433048',{metalness:.68,roughness:.28});
-    const trim=mat(['#daff46','#ff6dbb','#7df9ff','#ffd471'][id]||'#daff46',{metalness:.25,roughness:.36,
-      emissive:['#aaff3d','#ff48a9','#49dcff','#ffc64e'][id]||'#aaff3d',emissiveIntensity:1.55});
-    block(model,0,1.47,.44,.78,.47,.17,alloy);
-    block(model,0,1.50,.54,.43,.09,.057,trim);
-    for(const side of [-1,1]) {
-      mesh(geometries.sphere,alloy,model,side*.58,1.75,0,[.30,.25,.31]);
-      block(model,side*.28,.92,.36,.14,.20,.08,trim);
-      block(model,side*.25,.50,.23,.32,.28,.48,alloy);
-      mesh(geometries.sphere,trim,model,side*.53,1.06,.12,[.14,.15,.20]);
-    }
-    mesh(geometries.sphere,alloy,model,0,2.48,-.02,[.39,.23,.39]);
-    const visor=mesh(geometries.sphere,mat('#78dbff',{metalness:.75,roughness:.12,
-      emissive:id===0?'#266777':'#74418a',emissiveIntensity:.58}),model,0,2.24,.26,[.29,.12,.15]);
-    visor.castShadow=false;
-    block(model,0,1.05,-.36,.62,.43,.21,alloy);
-    block(model,0,1.13,-.49,.34,.075,.08,trim);
     // Distinctive chunky sci-fi blaster gripped with both hands.
     // Gun faces local +Z, the player's aim rotates the whole character.
     const gun=new THREE.Group();gun.position.set(0,1.46,.47);model.add(gun);
     const gunDark=mat('#141c2b',{roughness:.41,metalness:.55});
     const gunSteel=mat('#67788f',{roughness:.33,metalness:.57});
-    const gunColor=basic(id===0?'#caff55':'#ff72bd',{toneMapped:false});
+    const gunColor=new THREE.MeshPhysicalMaterial({color:id%2?'#c71523':'#075cf2',roughness:.30,metalness:.45,clearcoat:.35});
     block(gun,0,0,.29,.43,.35,.70,gunDark);
     block(gun,0,.18,.07,.55,.11,.55,gunSteel);
     const receiver=mesh(geometries.box,gunColor,gun,0,.215,.40,[.25,.045,.34]);
@@ -348,6 +159,11 @@ export function createArena3D(inputCanvas) {
     block(gun,0,.36,.25,.18,.16,.30,gunDark);
     const magazine=block(gun,0,-.17,.31,.27,.23,.22,gunSteel);
     magazine.rotation.x=-.16;
+    gun.userData.magazine=magazine;
+    for(let i=0;i<3;i++){
+      const stripe=block(gun,.222,.03,.18+i*.15,.015,.18,.065,basic(id%2?'#eee2c9':'#ff9b17'));
+      stripe.rotation.x=-.35;
+    }
     const muzzle=mesh(new THREE.ConeGeometry(.27,.70,8),basic('#ffe27a',{
       transparent:true,opacity:.86,depthWrite:false,toneMapped:false}),gun,0,-.03,1.55);
     muzzle.rotation.x=Math.PI/2;muzzle.visible=false;muzzle.castShadow=false;
@@ -356,10 +172,14 @@ export function createArena3D(inputCanvas) {
     hpBack.castShadow=false;
     const hpFill=block(hpRoot,0,0,.07,2.21,.20,.09,basic(hex,{toneMapped:false}));
     hpFill.castShadow=false;
-    return {root,model,arms,legs,a,carry,defense,charge,gun,muzzle,hpRoot,hpFill,prevX:null,prevZ:null};
+    const weaponRig=createWeaponRig(THREE,armor.group,model,gun,{height:1.72,depth:.40});
+    weaponRig.update({weapon:'pistol',vx:0,vy:0},0,0);
+    for(const chain of weaponRig.chains)batchRigidMeshes(THREE,chain.hand);
+    return {root,model,arms,legs,tails,armor,weaponRig,a,carry,defense,charge,gun,muzzle,hpRoot,hpFill,prevX:null,prevZ:null};
   }
   const humans=[makeHuman('#baff22','SEN',0),makeHuman('#ff3fa9','RAKİP',1),
     makeHuman('#73e9ff','OYUNCU 3',2),makeHuman('#ffc969','OYUNCU 4',3)];
+
   function updateHuman(o,p,g,t,dt) {
     const target=world(p.x,p.y);
     if (o.prevX===null || Math.hypot(target.x-o.root.position.x,target.z-o.root.position.z)>5) o.root.position.copy(target);
@@ -367,7 +187,7 @@ export function createArena3D(inputCanvas) {
     o.prevX=target.x;o.prevZ=target.z;
     o.root.visible=!g.shooter||!p.dead;
     const facing=g.shooter?(p.aim||p.face):p.face;
-    o.root.rotation.y=Math.atan2((facing?.x||0),(facing?.y||1));
+    o.root.rotation.y=Math.atan2((facing?.x??0),(facing?.y??1));
     o.hpRoot.visible=!!g.shooter&&!p.dead;
     if(o.hpRoot.visible){
       o.hpRoot.position.set(o.root.position.x,3.15,o.root.position.z);
@@ -375,7 +195,7 @@ export function createArena3D(inputCanvas) {
       const pct=clamp((p.hp??100)/100,0,1);
       o.hpFill.scale.x=2.21*pct;
       o.hpFill.position.x=-1.105*(1-pct);
-      o.hpFill.material.color.set(pct<.35?'#ff526b':p.color);
+      o.hpFill.material.color.set(pct<.35?'#af5d49':p.id%2?'#c39b83':'#bcc798');
     }
     o.gun.visible=!!g.shooter;
     if(g.shooter){
@@ -383,22 +203,33 @@ export function createArena3D(inputCanvas) {
       o.gun.scale.set(weapon==='shotgun'?1.18:weapon==='sniper'?.82:weapon==='rifle'?.90:1,
                       weapon==='shotgun'?1.14:1,
                       weapon==='pistol'?.75:weapon==='rifle'?1.27:weapon==='sniper'?1.56:1.20);
+      o.gun.scale.multiplyScalar(.65);
       o.gun.position.z=.47-(p.recoil||0)*.9;
       o.muzzle.visible=p.muzzle>0;
     }
 
     const moving=Math.hypot(p.vx||0,p.vy||0)>24;
     const run=moving?Math.min(1,Math.hypot(p.vx,p.vy)/260):0;
+    if(o.mixer){
+      o.mixer.update(dt);
+      const target=moving?(p.dashTime>0?'run':'walk'):'idle';
+      for(const [name,action] of Object.entries(o.animationActions)){
+        const weight=name.includes(target)?1:0;
+        action.setEffectiveWeight(THREE.MathUtils.lerp(action.getEffectiveWeight(),weight,Math.min(1,dt*12)));
+      }
+    }
     const phase=t*12+(p.id*2);
-    o.model.position.y=(moving?Math.abs(Math.sin(phase))*.10:.035*Math.sin(t*3+p.id));
-    o.model.rotation.z=p.dashTime>0?-.28*Math.sin(phase):.025*Math.sin(t*2+p.id);
-    for(let i=0;i<2;i++) {
+    o.model.position.y=0;o.model.rotation.set(0,0,0);
+    o.armor?.animate(p,t,dt);
+    if(!o.armor)for(let i=0;i<2;i++) {
       const side=i===0?-1:1;
       o.legs[i].rotation.x=Math.sin(phase+i*Math.PI)*.68*run;
       o.arms[i].rotation.x=g.shooter?-.87:-Math.sin(phase+i*Math.PI)*.62*run;
       o.arms[i].rotation.z=g.shooter?side*.28:side*.13;
     }
-    const holding=g.holder===p.id;
+    o.tails.forEach((tail,i)=>{tail.rotation.y=.3+Math.sin(t*7+i)*(.08+run*.2);});
+    if(g.shooter)o.weaponRig?.update(p,t,dt);
+    const holding=!g.shooter&&g.holder===p.id;
     o.carry.visible=holding;
     o.carry.material.opacity=.58+Math.sin(t*10)*.23;
     o.carry.scale.setScalar(1+.04*Math.sin(t*9));
@@ -408,11 +239,14 @@ export function createArena3D(inputCanvas) {
     o.charge.visible=!!(p.charging&&holding&&g.bomb.mode==='held');
     if(o.charge.visible){o.charge.material.opacity=.25+clamp(p.charge/.85,0,1)*.7;o.charge.rotation.z=t*2;}
     o.a.material.opacity=p.dashTime>0?.95:.30;
-    o.a.scale.setScalar(p.dashTime>0?1.4:1);
-    o.model.children[0].material.emissive?.set(g.shooter&&p.hitFlash>0?'#ff3a42':p.stun>0?'#285775':
-      ['#94c800','#e91e77','#0c93b3','#bd6411'][p.id]||'#a0d512');
+    o.a.scale.setScalar(p.dashTime>0?1.15:1);
+    for(const material of o.armor?.materials||[]){
+      if(material.emissiveIntensity>1)continue;
+      material.emissive.set(p.hitFlash>0?'#ff6255':'#000000');
+      material.emissiveIntensity=p.hitFlash>0?.22:0;
+    }
     if(g.shooter&&g.victoryId===p.id){o.model.rotation.y=t*3;o.model.position.y=.38+Math.abs(Math.sin(t*9))*.28;
-      o.arms[0].rotation.z=-1.2;o.arms[1].rotation.z=1.2;}
+      }
     // Character names remain exclusively in the existing scoreboard.
   }
   // Recognizable hand-fused bomb: layered forged metal, warning badge, cap and live wick.
@@ -631,7 +465,7 @@ export function createArena3D(inputCanvas) {
   // Optional desktop post-processing. Mobile retains a single fast render pass.
   // If a browser cannot load an addon, standard Three.js rendering keeps the game playable.
   let composer=null;
-  if(!lowPower){
+  if(false){
     Promise.all([
       import('/vendor/addons/postprocessing/EffectComposer.js'),
       import('/vendor/addons/postprocessing/RenderPass.js'),
@@ -642,13 +476,29 @@ export function createArena3D(inputCanvas) {
       const pipeline=new ec.EffectComposer(renderer);
       pipeline.setPixelRatio(pixelRatio);
       pipeline.addPass(new rp.RenderPass(scene,camera));
-      pipeline.addPass(new bp.UnrealBloomPass(new THREE.Vector2(1,1),.22,.30,.92));
+      pipeline.addPass(new bp.UnrealBloomPass(new THREE.Vector2(1,1),.40,.38,1.05));
       pipeline.addPass(new op.OutputPass());
       pipeline.setSize(Math.max(1,cachedW),Math.max(1,cachedH));
       composer=pipeline;
     }).catch(error=>console.info('Optional Three.js bloom unavailable:',error));
   }
   let lastFrame=performance.now();
+  let lastShadow=0,performanceStart=0,performanceFrames=0,totalRenderMs=0,performanceReports=0;
+  const performanceBadge=document.createElement('output');performanceBadge.className='performance-hud';performanceBadge.setAttribute('aria-label','Oyun performansı');performanceBadge.textContent='FPS —';shell.append(performanceBadge);
+  function renderScene(now){
+    if(now-lastShadow>=1000/30){renderer.shadowMap.needsUpdate=true;lastShadow=now;}
+    const begin=performance.now();renderer.render(scene,camera);totalRenderMs+=performance.now()-begin;
+    if(!performanceStart)performanceStart=now;
+    performanceFrames++;
+    if(now-performanceStart>=1000){
+      const fps=performanceFrames*1000/(now-performanceStart),cpu=totalRenderMs/performanceFrames;
+      performanceBadge.textContent=Math.round(fps)+' FPS';
+      inputCanvas.dataset.fps=fps.toFixed(1);inputCanvas.dataset.renderMs=cpu.toFixed(2);inputCanvas.dataset.drawCalls=String(renderer.info.render.calls);inputCanvas.dataset.triangles=String(renderer.info.render.triangles);
+      // Scale only when rendering itself exceeds the high-refresh budget.
+      if(++performanceReports>2&&cpu>6&&currentQualityRatio>.70){currentQualityRatio=Math.max(.70,currentQualityRatio*.9);renderer.setPixelRatio(currentQualityRatio);renderer.setSize(cachedW,cachedH,false);}
+      performanceFrames=0;performanceStart=now;totalRenderMs=0;
+    }
+  }
   let cachedW=0,cachedH=0;
   function resize(){
     const w=Math.max(1,inputCanvas.clientWidth),h=Math.max(1,inputCanvas.clientHeight);
@@ -658,7 +508,7 @@ export function createArena3D(inputCanvas) {
     composer?.setSize(w,h);
     // Fit the same logical arena regardless of actual screen shape.
     const aspect=w/h;
-    const visibleW=Math.max(44,24.75*aspect);
+    const visibleW=Math.max(43.2,25.5*aspect);
     const visibleH=visibleW/aspect;
     camera.left=-visibleW/2;camera.right=visibleW/2;
     camera.top=visibleH/2;camera.bottom=-visibleH/2;
@@ -725,7 +575,7 @@ export function createArena3D(inputCanvas) {
         const b=g.bullets?.[i],o=shooterShots[i];
         o.visible=!!b;
         if(o.visible){
-          o.position.copy(world(b.x,b.y,1.35));
+          o.position.copy(world(b.x,b.y,1.70));
           shotDir.set(b.vx,0,b.vy).normalize();
           o.quaternion.setFromUnitVectors(shotAxis,shotDir);
         }
@@ -747,7 +597,7 @@ export function createArena3D(inputCanvas) {
           o.material.opacity=clamp(p.t/.9,0,.95);
           r.position.copy(world(p.x,p.y,.08));r.scale.setScalar(p.r/S*.92);r.material.opacity=.5;}
       }
-      if(composer&&g.map.name!=='SON ŞANS')composer.render();else renderer.render(scene,camera);
+      renderScene(now);
       return;
     }
     bomb.visible=true;buffRoot.visible=false;elimination.visible=false;impactFX.visible=false;
@@ -812,14 +662,23 @@ export function createArena3D(inputCanvas) {
         guide.setColor(p.charge>.8?'#ff83c9':'#d8ff52');guide.visible=true;
       }
     }
-    if(composer&&g.map.name!=='SON ŞANS')composer.render();else renderer.render(scene,camera);
+    renderScene(now);
   }
   function dispose(){
-    composer?.dispose();detailKit.dispose();classicMapTexture?.dispose();snowTexture.dispose();snowGeometry.dispose();
-    shotGeometry.dispose();shotMaterial.dispose();
-    for(const human of humans){human.hpRoot.traverse(o=>{if(o.isMesh){o.geometry?.dispose();o.material?.dispose();}});}
-    renderer.dispose();renderer.domElement.remove();
-    disposeGroup(stage);scene.clear();
+    for(const pass of composer?.passes||[])pass.dispose?.();
+    composer?.dispose();detailKit.dispose();classicMapTexture?.dispose();environment.dispose();
+    const gs=new Set(),ms=new Set(),ts=new Set();
+    scene.traverse(o=>{
+      if(o.isInstancedMesh)o.dispose();
+      if(o.geometry)gs.add(o.geometry);
+      for(const m of (Array.isArray(o.material)?o.material:[o.material]))if(m){
+        ms.add(m);for(const v of Object.values(m))if(v?.isTexture)ts.add(v);
+      }
+    });
+    for(const g of gs)g.dispose();for(const m of ms)m.dispose();for(const t of ts)t.dispose();
+    for(const human of humans)if(human.mixer){human.mixer.stopAllAction();human.mixer.uncacheRoot(human.soldier);}
+    neonWorld.dispose();renderer.dispose();renderer.domElement.remove();performanceBadge.remove();scene.clear();
   }
   return {draw,pointer,dispose};
 }
+
