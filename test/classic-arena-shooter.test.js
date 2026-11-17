@@ -28,9 +28,9 @@ test('room settings expose arena and 3 5 7 rounds',()=>{
 test('round-based shooter preserves score and cycles original maps',()=>{
  const source=game.slice(game.indexOf('function startShooterRound(){'),game.indexOf('function shooterBotInput('));
  const g={rules:{arena:'cycle',rounds:5,battleMode:'duel'},players:[{},{}],score:[0,0],stats:{}};
- const sandbox=Function('game','MAPS','rand','SHOOTER_HP','SHOOTER_CLIP','$','hideOverlay','options','playerWeapon',
+ const sandbox=Function('game','MAPS','rand','SHOOTER_HP','SHOOTER_CLIP','$','hideOverlay','options','playerWeapon','net','SHOOTER_MODE','showOverlay',
    source+'\nreturn {startShooterRound,beginShooterRound};');
- const funcs=sandbox(g,maps,(lo,hi)=>lo,100,16,()=>({textContent:''}),()=>{}, {mode:'bot',weapon:'pistol'},()=>({clip:16}));
+ const funcs=sandbox(g,maps,(lo,hi)=>lo,100,16,()=>({textContent:''}),()=>{}, {mode:'bot',weapon:'pistol'},()=>({clip:16}),{},true,()=>{});
  funcs.startShooterRound();
  assert.equal(g.round,1);assert.equal(g.map.name,'NEON PARK');
  assert.equal(g.players[0].hp,100);assert.equal(g.players[1].ammo,16);

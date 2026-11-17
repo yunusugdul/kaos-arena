@@ -12,7 +12,8 @@ const HOST = process.env.HOST || '0.0.0.0';
 const ROOT = path.join(__dirname, 'public');
 const rooms = new Map();
 const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const MAX_FRAME = 64 * 1024;
+const MAX_FRAME = 256 * 1024; // Large four-player snapshots must not sever WebSocket connections.
+const MAX_BACKLOG = 256 * 1024;
 const ROOM_TTL_MS = 2 * 60 * 1000;
 function newCode() { let id; do { id=Array.from(crypto.randomBytes(6),v=>CHARS[v%CHARS.length]).join(''); } while(rooms.has(id)); return id; }
 function token() { return crypto.randomBytes(24).toString('hex'); }
@@ -20,27 +21,34 @@ const PRESETS={fusion:{upgrades:true,chaos:true,cards:true,panic:true},evolution
 function validateRules(input){const v=input&&typeof input==='object'&&!Array.isArray(input)?input:{};const preset=Object.hasOwn(PRESETS,v.preset)?v.preset:'fusion';return {battleMode:['duel','team','ffa'].includes(v.battleMode)?v.battleMode:'duel',preset,arena:['cycle','random','0','1','2','3','4'].includes(String(v.arena))?String(v.arena):'cycle',rounds:[3,5,7].includes(Number(v.rounds))?Number(v.rounds):5,upgradePersistence:v.upgradePersistence==='round'?'round':'match',...Object.fromEntries(['upgrades','chaos','cards','panic'].map(k=>[k,typeof v[k]==='boolean'?v[k]:PRESETS[preset][k]]))};}
 function safeName(raw){ return String(raw||'OYUNCU').replace(/[\x00-\x1f\x7f<>]/g,'').trim().slice(0,14)||'OYUNCU'; }
 function safeChat(raw){return typeof raw==='string'?raw.replace(/[\x00-\x1f\x7f\u202a-\u202e<>]/g,'').trim().slice(0,180):'';}
-function send(ws, data){ if(ws && !ws.closed) try { ws.send(JSON.stringify(data)); }catch{} }
+function send(ws, data){
+  if(!ws || ws.closed || ws.socket.destroyed)return;
+  // Discard stale *snapshots*, never control/chat messages, when a slow client lags.
+  if(data.type==='state'&&ws.socket.writableLength>MAX_BACKLOG)return;
+  try{ws.send(JSON.stringify(data));}catch{ws.socket.destroy();}
+}
 function roomCapacity(room){return room.rules.battleMode==='duel'?2:4;}
-function roster(room){ return room.members.map((m,i)=>({slot:i,name:m.name,online:!!m.ws&&!m.ws.closed})); }
+function roster(room){ return room.members.map((m,i)=>({slot:i,name:m.name,online:!!m.ws&&!m.ws.closed,ready:i===0||!!m.ready&&!!m.ws&&!m.ws.closed})); }
 function presence(room){ const p={type:'presence',code:room.code,players:roster(room),started:room.started,matchId:room.matchId,rules:room.rules,hostPaused:!!room.hostPaused}; room.members.forEach(m=>send(m.ws,p)); }
 function cleanup(){ const now=Date.now(); for(const [id,room] of rooms) if(now-room.updated>ROOM_TTL_MS && room.members.every(m=>!m.ws||m.ws.closed)) rooms.delete(id); }
 function reject(ws,message){ send(ws,{type:'error',message}); }
 function leave(ws,explicit=false){
   const room=ws.room,slot=ws.slot; if(!room)return;
   const m=room.members[slot];
-  if(m && m.ws===ws) {m.ws=null;room.updated=Date.now();if(slot===0&&room.started)room.hostPaused=true;}
+  if(m && m.ws===ws) {m.ws=null;if(!room.started)m.ready=false;room.updated=Date.now();if(slot===0&&room.started)room.hostPaused=true;}
   ws.room=null;ws.slot=null;
   if(explicit && slot===0){room.members.forEach((x,i)=>{if(i>0){send(x.ws,{type:'closed',message:'Odayı kuran oyuncu ayrıldı.'});if(x.ws){x.ws.room=null;x.ws.slot=null;}}});rooms.delete(room.code);}
   else if(explicit && slot>0){
     // Preserve stable player slots while a four-player match is in progress.
-    room.members[slot]={name:'Oyuncu bekleniyor',token:token(),ws:null};
+    room.members[slot]={name:'Oyuncu bekleniyor',token:token(),ws:null,ready:false};
     room.started=false;presence(room);
   }else presence(room);
 }
 function join(ws,room,slot,reconnected=false){
   if(ws.room) leave(ws,true);
   const m=room.members[slot];
+  // A lobby reconnect is not a fresh "ready" consent. Guests must confirm again.
+  if(reconnected&&!room.started&&slot>0)m.ready=false;
   if(m.ws && m.ws!==ws){send(m.ws,{type:'replaced'});m.ws.room=null;m.ws.slot=null;m.ws.close();}
   m.ws=ws;ws.room=room;ws.slot=slot;room.updated=Date.now();
   send(ws,{type:'joined',code:room.code,slot,token:m.token,players:roster(room),started:room.started,matchId:room.matchId,rules:room.rules,hostPaused:!!room.hostPaused,chatHistory:room.chatHistory||[],reconnected});
@@ -51,7 +59,7 @@ function onMessage(ws,raw){
   if(!d || typeof d!=='object'||typeof d.type!=='string')return;
   if(d.type==='create'){
     if(ws.room)leave(ws,true);
-    const code=newCode();const room={code,members:[{name:safeName(d.name),token:token(),ws:null}],rules:validateRules(d.rules),started:false,matchId:0,hostPaused:false,chatHistory:[],updated:Date.now()};rooms.set(code,room);join(ws,room,0);return;
+    const code=newCode();const room={code,members:[{name:safeName(d.name),token:token(),ws:null,ready:true}],rules:validateRules(d.rules),started:false,matchId:0,hostPaused:false,chatHistory:[],updated:Date.now()};rooms.set(code,room);join(ws,room,0);return;
   }
   if(d.type==='join'){
     const code=String(d.code||'').trim().toUpperCase().replace(/[^A-Z2-9]/g,''); const room=rooms.get(code);
@@ -63,15 +71,25 @@ function onMessage(ws,raw){
     const slot=room.members.findIndex((m,i)=>i>0&&(!m.ws||m.ws.closed)&&m.name==='Oyuncu bekleniyor');
     if(slot<0&&room.members.length>=roomCapacity(room))return reject(ws,'Oda dolu.');
     const index=slot>=0?slot:room.members.length;
-    const member={name:safeName(d.name),token:token(),ws:null};
+    const member={name:safeName(d.name),token:token(),ws:null,ready:false};
     if(slot>=0)room.members[slot]=member;else room.members.push(member);
     join(ws,room,index);return;
   }
   const room=ws.room; if(!room)return reject(ws,'Önce odaya katılmalısın.');
   room.updated=Date.now();
   if(d.type==='leave'){leave(ws,true);return;}
+  if(d.type==='heartbeat'){send(ws,{type:'heartbeat_ack'});return;}
+  if(d.type==='ready'&&ws.slot>0&&!room.started){
+    room.members[ws.slot].ready=d.ready===true;presence(room);return;
+  }
+  if(d.type==='weapon_select'&&ws.slot>0&&room.started){
+    if(!['pistol','rifle','shotgun','sniper'].includes(d.weapon)||!Number.isInteger(d.round)||d.matchId!==room.matchId)return;
+    send(room.members[0].ws,{type:'weapon_select',slot:ws.slot,weapon:d.weapon,round:d.round,matchId:room.matchId});return;
+  }
   if(d.type==='start'||d.type==='rematch'){
-    if(ws.slot!==0 || room.members.length!==roomCapacity(room) || !room.members.every(m=>m.ws&&!m.ws.closed))return reject(ws,roomCapacity(room)+' oyuncu hazır olmadan maç başlatılamaz.');
+    if(ws.slot!==0)return reject(ws,'Sadece oda kurucusu maçı başlatabilir.');
+    if(room.members.length!==roomCapacity(room))return reject(ws,roomCapacity(room)+' oyuncu olmadan maç başlatılamaz.');
+    if(!room.members.every((m,i)=>m.ws&&!m.ws.closed&&(i===0||m.ready)))return reject(ws,'Bütün oyuncular HAZIRIM demeden maç başlatılamaz.');
     if(d.type==='start'&&room.started)return reject(ws,'Maç zaten başladı. Rövanş için rövanş komutunu kullan.');
     if(d.type==='rematch'&&!room.started)return reject(ws,'Önce ilk maçı başlatmalısın.');
     room.started=true;room.hostPaused=false;room.matchId++;room.lastSnapshotAt=0;
@@ -122,11 +140,13 @@ function upgrade(req,socket,head){
     const accept=crypto.createHash('sha1').update(req.headers['sec-websocket-key']+'258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
     socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: '+accept+'\r\n\r\n');
   }catch{socket.destroy();return;}
-  const ws={socket,closed:false,room:null,slot:null,buffer:Buffer.alloc(0),send:msg=>{if(!ws.closed)socket.write(wsFrame(1,msg));},close:()=>{if(!ws.closed){ws.closed=true;socket.end(wsFrame(8,Buffer.alloc(0)));}}};
+  const ws={socket,closed:false,awaitPong:false,room:null,slot:null,buffer:Buffer.alloc(0),send:msg=>{if(!ws.closed&&!socket.destroyed)socket.write(wsFrame(1,msg));},close:()=>{if(!ws.closed){ws.closed=true;socket.end(wsFrame(8,Buffer.alloc(0)));}}};
+  socket.setKeepAlive(true,30000);
   socket.on('data',chunk=>{
     if(ws.closed)return;
+    // A TCP chunk can contain multiple valid WebSocket frames. Bound incomplete frames
+    // after parsing, not the aggregate input chunk (which could be >MAX_FRAME).
     ws.buffer=Buffer.concat([ws.buffer,chunk]);
-    if(ws.buffer.length>MAX_FRAME+1024){ws.close();return;}
     while(ws.buffer.length>=2){
       const b=ws.buffer;const op=b[0]&15;const fin=!!(b[0]&128);const masked=!!(b[1]&128);let len=b[1]&127,offset=2;
       if(len===126){if(b.length<4)return;len=b.readUInt16BE(2);offset=4;}
@@ -136,15 +156,20 @@ function upgrade(req,socket,head){
       const mask=b.subarray(offset,offset+4),msg=Buffer.from(b.subarray(offset+4,offset+4+len));
       ws.buffer=b.subarray(offset+4+len);
       for(let i=0;i<msg.length;i++)msg[i]^=mask[i&3];
-      if(op===8){ws.close();return;}if(op===9){socket.write(wsFrame(10,msg));continue;}if(op===10)continue;
+      if(op===8){ws.close();return;}if(op===9){socket.write(wsFrame(10,msg));continue;}if(op===10){ws.awaitPong=false;continue;}
       if(op!==1){ws.close();return;}
       onMessage(ws,msg.toString('utf8'));
     }
+    if(ws.buffer.length>MAX_FRAME+14){ws.close();}
   });
   socket.on('close',()=>{ws.closed=true;leave(ws);});
   socket.on('error',()=>{ws.closed=true;leave(ws);});
   if(head.length)socket.emit('data',head);
-  ws.pingTimer=setInterval(()=>{if(ws.closed){clearInterval(ws.pingTimer);return;}try{socket.write(wsFrame(9,'ping'));}catch{}},25000);
+  ws.pingTimer=setInterval(()=>{
+    if(ws.closed||socket.destroyed){clearInterval(ws.pingTimer);return;}
+    if(ws.awaitPong){socket.destroy();return;} // Dead peers must release their room slot.
+    ws.awaitPong=true;try{socket.write(wsFrame(9,'ping'));}catch{socket.destroy();}
+  },25000);
   socket.on('close',()=>clearInterval(ws.pingTimer));
 }
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.svg':'image/svg+xml','.wav':'audio/wav','.mp3':'audio/mpeg','.glb':'model/gltf-binary'};
@@ -161,6 +186,9 @@ const server=http.createServer((req,res)=>{
     addon?path.join(__dirname,'node_modules','three','examples','jsm',pathname.slice('/vendor/addons/'.length)):
     path.join(ROOT,pathname);fs.readFile(fp,(err,data)=>{if(err){res.writeHead(404).end('Not found');return;}res.writeHead(200,{'Content-Type':MIME[path.extname(fp)]||'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(data);});
 });
+// Avoid Render edge reusing HTTP keepalive connections after Node has closed them.
+server.keepAliveTimeout=120000;
+server.headersTimeout=125000;
 server.on('upgrade',upgrade);
 const cleaner=setInterval(cleanup,60000);cleaner.unref();
 if(require.main===module)server.listen(PORT,HOST,()=>console.log('KAOS ARENA online listening on '+HOST+':'+PORT));

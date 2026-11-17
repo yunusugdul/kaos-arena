@@ -61,7 +61,7 @@ const DEFAULT_RULES=()=>({preset:'fusion',arena:'cycle',rounds:5,battleMode:'due
 function safeRules(value){const v=value&&typeof value==='object'?value:{},preset=Object.hasOwn(PRESETS,v.preset)?v.preset:'fusion';return {battleMode:['duel','team','ffa'].includes(v.battleMode)?v.battleMode:'duel',preset,arena:['cycle','random','0','1','2','3','4'].includes(String(v.arena))?String(v.arena):'cycle',rounds:[3,5,7].includes(Number(v.rounds))?Number(v.rounds):5,upgradePersistence:v.upgradePersistence==='round'?'round':'match',...Object.fromEntries(['upgrades','chaos','cards','panic'].map(k=>[k,typeof v[k]==='boolean'?v[k]:PRESETS[preset][k]]))};}
 const CHAOS={turbo:{name:'⚡ TURBO ZAMANI!',color:'#e2ff60'}};
 let options={mode:'bot',difficulty:'normal',nickname:'KAOS KRALI',weapon:'pistol',rules:DEFAULT_RULES()};
-const net={chatHistory:[],chatUnread:0,matchId:0,focusPaused:false,ws:null,role:null,slot:null,code:null,token:null,players:[],connected:false,closing:false,freeze:false,prevPhase:null,lastState:0,lastInput:0,remote:{x:0,y:0,aimX:0,aimY:0,aimActive:false},remotes:{},hostAway:false,retry:null,snapshots:[],seq:0};
+const net={chatHistory:[],chatUnread:0,matchId:0,focusPaused:false,ws:null,role:null,slot:null,code:null,token:null,players:[],connected:false,closing:false,freeze:false,prevPhase:null,lastState:0,lastInput:0,remote:{x:0,y:0,aimX:0,aimY:0,aimActive:false},remotes:{},hostAway:false,retry:null,retryAttempts:0,heartbeatTimer:null,lastSeen:0,pendingWeaponRound:null,weaponUiKey:null,snapshots:[],seq:0};
 // Each remote snapshot is authoritative. Display interpolation affects rendering only,
 // never collision, timers, score, or the game simulation.
 const VIEW_DELAY=95,MAX_EXTRAPOLATE=38;
@@ -195,8 +195,8 @@ function newGame(){prepareArena();document.body.classList.remove('setup-open');p
  $('keyThrow').textContent=options.mode!=='local'?'SOL TIK':'F';$('keyDash').textContent=options.mode!=='local'?'SPACE':'G';$('keyParry').textContent=options.mode!=='local'?'E':'H';$('keyPower').textContent=options.mode!=='local'?'Q':'R';$('pauseBtn').classList.toggle('hidden',options.mode==='online');$('chatToggle').classList.toggle('hidden',options.mode!=='online');$('gameChatPanel').classList.toggle('hidden',options.mode!=='online');closeGameChat();renderChat();showChatTemporarily();
  const touchDevice=(navigator.maxTouchPoints>0||matchMedia('(pointer:coarse)').matches);if(touchDevice&&$('touchControls').parentElement!==$('gameScreen'))$('gameScreen').append($('touchControls'));$('touchControls').style.display=options.mode!=='local'&&touchDevice?'block':'none';if(options.mode!=='local'&&touchDevice){$('keyThrow').textContent='💣';$('keyDash').textContent='➚';$('keyParry').textContent='⛨';$('keyPower').textContent='✦';$('controlsHint').textContent='Sol joystick ile hareket • FIRLAT basılı tut/bırak • ATIL kaç • SAVUN karşıla • KART kullan';}
  if(SHOOTER_MODE)configureShooterUI();
- if(options.mode==='online'){net.focusPaused=false;net.guestHeardShots=0;net.guestShotCounts=[];startRound();game.phase='countdown';game.phaseTime=2.0;hideOverlay();updateHUD();return;}
- if(SHOOTER_MODE){startRound();game.phase='countdown';game.phaseTime=1.8;hideOverlay();snd('ready');updateHUD();return;}
+ if(options.mode==='online'){net.focusPaused=false;net.guestHeardShots=0;net.guestShotCounts=[];net.pendingWeaponRound=null;net.weaponUiKey=null;startRound();if(!SHOOTER_MODE){game.phase='countdown';game.phaseTime=2.0;hideOverlay();}updateHUD();return;}
+ if(SHOOTER_MODE){startRound();updateHUD();return;}
  startRound();showOverlay('MAÇ BAŞLIYOR','🎯','YENİ KURALLAR, YENİ KAOS','Atış tuşuna basılı tut, nişan al ve bırak. Gelen bombayı savunmayla geri sektir!', [{label:'HAZIRIM, BAŞLAT →',action:()=>{snd('ready');game.phase='countdown';game.phaseTime=3.2;hideOverlay()}}]);updateHUD()}
 
 // Shooter rules are exclusive to the isolated staging branch.
@@ -263,7 +263,8 @@ function beginShooterRound(){
  const arenaOption=g.rules.arena;
  const index=arenaOption==='cycle'?(g.round-1)%MAPS.length:
    arenaOption==='random'?Math.floor(rand(0,MAPS.length)):Number(arenaOption);
- g.map=MAPS[index];g.phase='countdown';g.phaseTime=1.8;
+ g.map=MAPS[index];g.phase='weapon-select';g.phaseTime=0;
+ g.weaponSelections=g.players.map((_,i)=>options.mode==='bot'&&i===1);
  g.bullets=[];g.roundWinner=null;g.powerup=null;g.powerDelay=4.5;
  g.card=null;g.chaos=null;g.snowPatches=[];g.snowDelay=1.3;g.elapsed=0;
  const starts=[[155,120],[845,442],[155,442],[845,120]];
@@ -277,7 +278,44 @@ function beginShooterRound(){
   p.stun=0;p.portalCD=0;p.upgrades=[];p.card=null;
   p.aim={x:i?-1:1,y:0};p.face={x:i?-1:1,y:0};
  }
- $('mapName').textContent=({'NEON PARK':'AVLU','BUZ LABİRENTİ':'SOĞUK DEPO','PORTAL PARTİSİ':'GEÇİT','SEK SEK':'TERSANE','SON ŞANS':'SON MEVZİ'}[g.map.name]||g.map.name);hideOverlay();
+ $('mapName').textContent=({'NEON PARK':'AVLU','BUZ LABİRENTİ':'SOĞUK DEPO','PORTAL PARTİSİ':'GEÇİT','SEK SEK':'TERSANE','SON ŞANS':'SON MEVZİ'}[g.map.name]||g.map.name);
+ if(options.mode==='bot'){g.players[1].weapon=['pistol','rifle','shotgun','sniper'][Math.floor(Math.random()*4)];g.players[1].ammo=playerWeapon(g.players[1]).clip;}
+ net.weaponUiKey=null;showRoundWeaponPicker();
+}
+// The authoritative host starts the countdown only after every participant picks.
+function selectRoundWeapon(slot,weapon){
+ if(!game||game.phase!=='weapon-select'||!WEAPONS[weapon]||game.weaponSelections?.[slot])return;
+ if(options.mode==='online'&&net.role==='guest'){
+  if(slot!==net.slot||!net.connected||net.pendingWeaponRound===game.round)return;
+  net.pendingWeaponRound=game.round;
+  netSend({type:'weapon_select',matchId:net.matchId,round:game.round,weapon});
+  net.weaponUiKey=null;showRoundWeaponPicker();return;
+ }
+ const p=game.players[slot];if(!p)return;
+ p.weapon=weapon;p.ammo=WEAPONS[weapon].clip;game.weaponSelections[slot]=true;
+ if(slot===0)options.weapon=weapon;
+ if(game.weaponSelections.every(Boolean)){
+  game.phase='countdown';game.phaseTime=2.2;hideOverlay();snd('ready');return;
+ }
+ showRoundWeaponPicker();
+}
+function showRoundWeaponPicker(){
+ if(!SHOOTER_MODE||!game||game.phase!=='weapon-select')return;
+ const me=options.mode==='online'?(net.slot??0):game.weaponSelections.findIndex(v=>!v);
+ if(options.mode==='online'&&net.role==='guest'&&(game.weaponSelections[me]||net.pendingWeaponRound===game.round)){
+  showOverlay('TUR '+game.round,'⏳','DİĞER OYUNCULAR BEKLENİYOR','Silah tercihin gönderildi. Herkes seçince geri sayım başlayacak.',[]);return;
+ }
+ if(me<0||game.weaponSelections[me]){
+  showOverlay('TUR '+game.round,'⏳','SİLAH SEÇİMİ BEKLENİYOR','Diğer oyuncular silah seçiyor. Herkes bitirince tur başlayacak.',[]);return;
+ }
+ const choices=[['pistol','🔫 TABANCA'],['rifle','⚡ OTOMATİK TÜFEK'],['shotgun','💥 POMPALI'],['sniper','🎯 KESKİN NİŞANCI']];
+ showOverlay('TUR '+game.round+' / '+game.rules.rounds,'🔫',options.mode==='local'?'OYUNCU '+(me+1)+' • SİLAH SEÇ': 'HER TUR SİLAHINI SEÇ','Silahını belirle. Tüm oyuncular seçmeden çatışma başlamaz.',choices.map(([id,label])=>({label,action:()=>selectRoundWeapon(me,id)})));
+}
+function syncRoundWeaponPicker(){
+ if(!SHOOTER_MODE||!game||game.phase!=='weapon-select')return;
+ const seat=net.slot??0,chosen=!!game.weaponSelections?.[seat],pending=net.pendingWeaponRound===game.round;
+ const key=game.round+':'+chosen+':'+pending;
+ if(net.weaponUiKey!==key){net.weaponUiKey=key;showRoundWeaponPicker();}
 }
 function shooterBotInput(p){
  const op=game.players[0],t=game.elapsed;
@@ -440,6 +478,7 @@ function tickShooter(dt){
  updateArenaAmbience(g.map);
  if(g.eliminationFx){g.eliminationFx.t-=dt;if(g.eliminationFx.t<=0)g.eliminationFx=null;}
  if(g.hitFx){g.hitFx.t-=dt;if(g.hitFx.t<=0)g.hitFx=null;}
+ if(g.phase==='weapon-select')return;
  if(g.phase==='countdown'){g.phaseTime-=dt;if(g.phaseTime<=0){g.phase='active';snd('ready');alertToast('🔫 ÇATIŞMA BAŞLADI!',1);}return;}
  if(g.phase==='roundwin'){
   g.phaseTime-=dt;
@@ -574,7 +613,7 @@ function pressShooterControl(code,down){
 
 function startRound(){if(SHOOTER_MODE){startShooterRound();return;}const g=game,nextHolder=g.round===0?Math.floor(rand(0,2)):(1-g.roundLoser);g.round++;g.map=MAPS[g.rules.arena==='random'?Math.floor(rand(0,MAPS.length)):g.rules.arena==='cycle'?(g.round-1)%MAPS.length:Number(g.rules.arena)];g.holder=nextHolder;g.phase='countdown';g.phaseTime=3.15;g.initialFuse=rand(19,23.4);g.fuse=g.initialFuse;g.beepMark=99;g.elapsed=0;g.lock=.55;g.bomb={mode:'held',owner:g.holder,x:g.players[g.holder].x,y:g.players[g.holder].y-27,vx:0,vy:0,life:0,bounces:0,trail:[],charge:0};g.card=null;g.cardDelay=3.6;g.upgradeOffer=[];g.upgradeChooser=null;g.upgradeTimer=0;g.chaos=null;g.chaosStarted=false;g.chaosTimer=0;g.snowPatches=[];g.snowDelay=.9;g.roundLoser=null;g.slowTime=0;
  g.players.forEach((p,i)=>{p.x=i?850:150;p.y=281;p.vx=p.vy=p.speed=0;p.face={x:i?-1:1,y:0};p.aim={x:i?-1:1,y:0};p.charging=false;p.charge=0;p.dashCD=0;p.dashTime=0;p.parryCD=0;p.parryTime=0;p.shieldTime=0;p.shieldUsed=false;p.stun=0;p.portalCD=0;p.card=null;p.aiThink=0;p.aiDecision=null});$('mapName').textContent=({'NEON PARK':'AVLU','BUZ LABİRENTİ':'SOĞUK DEPO','PORTAL PARTİSİ':'GEÇİT','SEK SEK':'TERSANE','SON ŞANS':'SON MEVZİ'}[g.map.name]||g.map.name);hideOverlay()}
-function showOverlay(eyebrow,icon,title,description,actions=[]){$('overlayEyebrow').textContent=eyebrow;$('overlayIcon').textContent=icon;$('overlayTitle').textContent=title;$('overlayDesc').textContent=description;const div=$('overlayFoot');div.replaceChildren();for(const a of actions){const b=document.createElement('button');b.textContent=a.label;if(a.secondary)b.classList.add('secondary-btn');b.addEventListener('click',()=>{snd('click');a.action()});div.appendChild(b)}$('overlay').classList.remove('hidden')}
+function showOverlay(eyebrow,icon,title,description,actions=[]){$('overlayEyebrow').textContent=eyebrow;$('overlayIcon').textContent=icon;$('overlayTitle').textContent=title;$('overlayDesc').textContent=description;const div=$('overlayFoot');div.replaceChildren();div.classList.toggle('weapon-pick',actions.length===4);for(const a of actions){const b=document.createElement('button');b.textContent=a.label;if(a.secondary)b.classList.add('secondary-btn');b.addEventListener('click',()=>{snd('click');a.action()});div.appendChild(b)}$('overlay').classList.remove('hidden')}
 function hideOverlay(){$('overlay').classList.add('hidden')}
 function returnMenu(){document.body.classList.remove('setup-open');stopArenaAmbience();resetChatVisibility();if(options.mode==='online')leaveOnline();closeGameChat();$('gameChatPanel').classList.add('hidden');game=null;keys=Object.create(null);document.body.classList.remove('is-playing');$('gameScreen').classList.add('hidden');$('landing').classList.remove('hidden');hideOverlay();$('eventCallout').classList.add('hidden');} 
 function pauseGame(){if(options.mode==='online')return;if(!game)return;if(game.phase==='paused'){game.phase=game.pausedFrom;hideOverlay();return}if(!['active','countdown'].includes(game.phase))return;game.pausedFrom=game.phase;game.phase='paused';showOverlay('MOLA ZAMANI','⏸️','OYUN DURAKLATILDI','Hazır olduğunda kaldığın yerden devam et.',[{label:'DEVAM ET →',action:pauseGame},{label:'ANA MENÜ',secondary:true,action:returnMenu}])}
@@ -812,7 +851,7 @@ function frame(time){if(document.hidden){animLast=time;requestAnimationFrame(fra
  requestAnimationFrame(frame)
 }
 function isTyping(el){return el&&['INPUT','TEXTAREA','SELECT'].includes(el.tagName)}
-function pressControl(code,down){if(isGameChatActive()||!game||game.phase==='finished'||game.phase==='paused'||game.phase==='help')return;
+function pressControl(code,down){if(isGameChatActive()||!game||game.phase==='finished'||game.phase==='paused'||game.phase==='help'||game.phase==='weapon-select')return;
  if(SHOOTER_MODE){pressShooterControl(code,down);return;}
  if(options.mode==='online'){
    const acts={Space:'dash',KeyE:'parry',KeyQ:'card'};
@@ -888,53 +927,73 @@ function pauseHostWhenAway(){
 function resumeHostWhenBack(){
  if(!net.focusPaused)return;net.focusPaused=false;
  netSend({type:'host_pause',paused:false});
- if(!net.freeze&&game&&game.phase==='paused'){game.phase=net.prevPhase||'countdown';hideOverlay();}
+ if(!net.freeze&&game&&game.phase==='paused'){game.phase=net.prevPhase||'countdown';if(game.phase==='weapon-select')showRoundWeaponPicker();else hideOverlay();}
 }
 function applyHostAwayPause(paused,reason){
  if(net.role!=='guest'||!game)return;
  net.hostAway=paused;
  if(paused){game.phase='paused';pauseMessage(reason||'Oda kurucusu şu anda oyunda değil. Kaldığınız yerden devam etmek için onu bekleyin.');}
- else {hideOverlay();}
+ else {if(game.phase==='weapon-select')showRoundWeaponPicker();else hideOverlay();}
 }
 function joinFromInput(){if(!canOnline())return;const code=$('joinCode').value.toUpperCase().replace(/[^A-Z2-9]/g,'');if(code.length!==6){roomMessage('Lütfen 6 karakterli oda kodunu gir.',true);return;}options.nickname=$('nick').value.trim().slice(0,14)||'KAOS KRALI';try{localStorage.setItem('bomba-nickname',options.nickname)}catch{}connectRoom({type:'join',name:options.nickname,code,token:sessionStorage.getItem('bomba-room-'+code)||undefined});}
+function stopRoomHeartbeat(){if(net.heartbeatTimer){clearInterval(net.heartbeatTimer);net.heartbeatTimer=null;}}
 function connectRoom(request){
  if(net.retry){clearTimeout(net.retry);net.retry=null;}
- net.closing=false; if(net.ws){net.ws.onclose=null;net.ws.close();}
+ stopRoomHeartbeat();net.closing=false;
+ if(net.ws){net.ws.onclose=null;net.ws.close();net.ws=null;}
  net.connected=false;roomMessage('Sunucuya bağlanılıyor…');
  const uri=(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws';
  let socket;try{socket=new WebSocket(uri);}catch{roomMessage('Bağlantı kurulamadı. Site adresini kontrol et.',true);return;}
  net.ws=socket;
- socket.onopen=()=>{if(net.ws!==socket)return;net.connected=true;netSend(request)};
- socket.onmessage=e=>{if(net.ws!==socket)return;let d;try{d=JSON.parse(e.data);}catch{return;}onNetMessage(d)};
- socket.onerror=()=>{if(net.ws!==socket)return;roomMessage('WebSocket bağlantısı kurulamadı.',true)};
- socket.onclose=()=>{if(net.ws!==socket)return;net.connected=false;if(net.closing)return;
-   roomMessage('Bağlantı koptu; yeniden bağlanılıyor…',true);
+ socket.onopen=()=>{
+  if(net.ws!==socket)return;net.connected=true;net.lastSeen=Date.now();netSend(request);
+  net.heartbeatTimer=setInterval(()=>{
+   if(net.ws!==socket||socket.readyState!==WebSocket.OPEN)return;
+   if(Date.now()-net.lastSeen>65000){socket.close();return;}
+   netSend({type:'heartbeat'});
+  },20000);
+ };
+ socket.onmessage=e=>{if(net.ws!==socket)return;net.lastSeen=Date.now();let d;try{d=JSON.parse(e.data);}catch{return;}onNetMessage(d)};
+ socket.onerror=()=>{if(net.ws!==socket)return;roomMessage('WebSocket bağlantısında sorun var; yeniden deneniyor.',true)};
+ socket.onclose=()=>{if(net.ws!==socket)return;stopRoomHeartbeat();net.connected=false;if(net.closing)return;
+   const backoff=Math.min(16000,1000*2**Math.min(net.retryAttempts++,4));
+   roomMessage('Bağlantı koptu; '+Math.round(backoff/1000)+' saniye sonra yeniden denenecek…',true);
    if(game&&options.mode==='online'){showOverlay('BAĞLANTI','📡','BAĞLANTI KOPTU','Sunucuya tekrar bağlanmayı deniyoruz…',[]);}
-   if(net.code){net.retry=setTimeout(()=>connectRoom({type:'join',code:net.code,token:net.token,name:options.nickname}),2000);}else{roomMessage('Sunucuya erişilemedi. Yeniden denemek için oda kur/katıl düğmesine bas.',true);}
+   if(net.code){net.retry=setTimeout(()=>connectRoom({type:'join',code:net.code,token:net.token,name:options.nickname}),backoff);}
+   else if(request?.type==='create'||request?.type==='join'){net.retry=setTimeout(()=>connectRoom(request),backoff);}
  };
 }
-function leaveOnline(){resetChatVisibility();net.closing=true;if(net.retry){clearTimeout(net.retry);net.retry=null;}netSend({type:'leave'});if(net.ws){net.ws.onclose=null;net.ws.close();net.ws=null;}if(net.code)try{sessionStorage.removeItem('bomba-room-'+net.code)}catch{}net.role=null;net.slot=null;net.code=null;net.token=null;net.players=[];net.connected=false;net.freeze=false;net.focusPaused=false;net.hostAway=false;net.snapshots=[];net.seq=0;net.remote={x:0,y:0,aimX:0,aimY:0,aimActive:false};net.remotes={};net.hostAway=false;net.focusPaused=false;net.matchId=0;net.chatUnread=0;net.chatHistory=[];renderChat();$('gameChatPanel').classList.add('hidden');$('chatUnread').classList.add('hidden');closeGameChat();$('roomReady').classList.add('hidden');history.replaceState(null,'',location.pathname);renderRules();}
+function leaveOnline(){resetChatVisibility();stopRoomHeartbeat();net.closing=true;if(net.retry){clearTimeout(net.retry);net.retry=null;}netSend({type:'leave'});if(net.ws){net.ws.onclose=null;net.ws.close();net.ws=null;}if(net.code)try{sessionStorage.removeItem('bomba-room-'+net.code)}catch{}net.role=null;net.slot=null;net.code=null;net.token=null;net.players=[];net.connected=false;net.freeze=false;net.focusPaused=false;net.hostAway=false;net.snapshots=[];net.seq=0;net.remote={x:0,y:0,aimX:0,aimY:0,aimActive:false};net.remotes={};net.hostAway=false;net.focusPaused=false;net.matchId=0;net.retryAttempts=0;net.pendingWeaponRound=null;net.weaponUiKey=null;net.chatUnread=0;net.chatHistory=[];renderChat();$('gameChatPanel').classList.add('hidden');$('chatUnread').classList.add('hidden');closeGameChat();$('roomReady').classList.add('hidden');$('guestReady').classList.add('hidden');history.replaceState(null,'',location.pathname);renderRules();}
 function updateRoomPanel(){
  if(!net.code)return;
  $('roomReady').classList.remove('hidden');$('roomCode').textContent=net.code;
  $('roomLink').value=location.origin+location.pathname+'?room='+net.code;
  $('roomPlayers').replaceChildren();renderRules();for(let i=0;i<requiredPlayers();i++){
-  const info=net.players[i],line=document.createElement('div');const name=document.createElement('b');name.textContent=(i===0?'🟢 ':'🩷 ')+(info?.name||'Oyuncu bekleniyor');const state=document.createElement('span');state.textContent=info?.online?'HAZIR':'BEKLENİYOR';state.className=info?.online?'ready':'waiting';line.append(name,state);$('roomPlayers').append(line);
+  const info=net.players[i],line=document.createElement('div');const name=document.createElement('b');name.textContent=(i===0?'🟢 ':'🩷 ')+(info?.name||'Oyuncu bekleniyor');const state=document.createElement('span');state.textContent=!info?.online?'ÇEVRİMDIŞI':info.ready?'HAZIR':'HAZIR DEĞİL';state.className=info?.online&&info.ready?'ready':'waiting';line.append(name,state);$('roomPlayers').append(line);
  }
  $('hostStart').classList.toggle('hidden',net.role!=='host');
- $('hostStart').disabled=!(net.players.length===requiredPlayers()&&net.players.every(p=>p.online));
- $('hostStart').textContent=$('hostStart').disabled?'OYUNCULAR BEKLENİYOR ('+net.players.filter(p=>p.online).length+'/'+requiredPlayers()+')':'🔫 MAÇI BAŞLAT →';
- roomMessage(net.role==='host'?'Arkadaşın katılınca maçı başlat.':'Odadasın! Maçı kuran oyuncu başlatacak.');
+ $('guestReady').classList.toggle('hidden',net.role!=='guest'||!!game);
+ $('guestReady').disabled=!net.connected||!!net.players[net.slot]?.ready;
+ $('guestReady').textContent=net.players[net.slot]?.ready?'✓ HAZIRSIN • KURUCU BEKLENİYOR':'✓ HAZIRIM';
+ $('hostStart').disabled=!(net.players.length===requiredPlayers()&&net.players.every(p=>p.online&&p.ready));
+ $('hostStart').textContent=$('hostStart').disabled?'HAZIR OYUNCULAR ('+net.players.filter(p=>p.online&&p.ready).length+'/'+requiredPlayers()+')':'🔫 MAÇI BAŞLAT →';
+ roomMessage(net.role==='host'?'Diğer oyuncular HAZIRIM dedikten sonra maçı başlat.':net.players[net.slot]?.ready?'Hazırsın! Kurucunun başlamasını bekle.':'Odaya katıldın. Başlamak için HAZIRIM düğmesine bas.');
 }
 function onNetMessage(d){
- if(d.type==='error'){roomMessage(d.message||'Oda hatası.',true);return;}
+ if(d.type==='error'){
+  roomMessage(d.message||'Oda hatası.',true);
+  if(net.code&&/oda bulunamadı|süresi doldu/i.test(d.message||'')){
+   if(net.retry){clearTimeout(net.retry);net.retry=null;}
+   if(game)showOverlay('BAĞLANTI','⚠️','ODA SÜRESİ DOLDU','Sunucu yeniden başlamış olabilir. Oyun odası bellekte tutulduğu için yeni oda kurmalısın.',[{label:'ANA MENÜ',action:returnMenu}]);
+  }return;}
  if(d.type==='joined'){
-  net.code=d.code;net.slot=d.slot;net.role=d.slot===0?'host':'guest';net.token=d.token;net.players=d.players||[];net.connected=true;net.chatHistory=Array.isArray(d.chatHistory)?d.chatHistory.slice(-40):[];net.chatUnread=0;net.matchId=Number.isInteger(d.matchId)?d.matchId:0;$('chatUnread').classList.add('hidden');renderChat();showChatTemporarily();options.rules=safeRules(d.rules);renderRules();
+  net.retryAttempts=0;net.code=d.code;net.slot=d.slot;net.role=d.slot===0?'host':'guest';net.token=d.token;net.players=d.players||[];net.connected=true;net.chatHistory=Array.isArray(d.chatHistory)?d.chatHistory.slice(-40):[];net.chatUnread=0;net.matchId=Number.isInteger(d.matchId)?d.matchId:0;$('chatUnread').classList.add('hidden');renderChat();showChatTemporarily();options.rules=safeRules(d.rules);renderRules();
   try{sessionStorage.setItem('bomba-room-'+net.code,net.token)}catch{}
   history.replaceState(null,'',location.pathname+'?room='+net.code);updateRoomPanel();
   if(d.reconnected&&game){hideOverlay();if(net.role==='host'&&!document.hidden)netSend({type:'host_pause',paused:false});}
   return;
  }
+ if(d.type==='heartbeat_ack')return;
  if(d.type==='chat'){appendChatItem(d);return;}
  if(d.type==='host_pause'){
   if(net.role==='guest')applyHostAwayPause(!!d.paused,d.reason);
@@ -953,15 +1012,15 @@ function onNetMessage(d){
   if(options.mode!=='online')return;
   if(!Number.isInteger(d.matchId)||d.matchId<=net.matchId)return;net.matchId=d.matchId;net.freeze=false;net.focusPaused=false;net.hostAway=false;net.snapshots=[];net.seq=0;net.remote={x:0,y:0,aimX:0,aimY:0,aimActive:false};net.remotes={};newGame();roomMessage(d.rematch?'Rövanş başladı!':'Maç başladı!');return;
  }
+ if(d.type==='weapon_select'&&net.role==='host'&&game?.phase==='weapon-select'&&d.matchId===net.matchId&&d.round===game.round){
+  if(Number.isInteger(d.slot)&&d.slot>0&&d.slot<game.players.length)selectRoundWeapon(d.slot,d.weapon);return;
+ }
  if(d.type==='input'&&net.role==='host'){
   const slot=Number.isInteger(d.slot)?d.slot:1;
   if(!game||slot<=0||slot>=game.players.length)return;
   const remote={x:d.x||0,y:d.y||0,aimX:d.aimX||0,aimY:d.aimY||0,aimActive:!!d.aimActive};
   net.remotes[slot]=remote;if(slot===1)net.remote=remote;
-  if(game.phase==='countdown'&&WEAPONS[d.weapon]){
-   game.players[slot].weapon=d.weapon;game.players[slot].ammo=WEAPONS[d.weapon].clip;
-  }
-  return;
+    return;
  }
  if(d.type==='upgrade'&&net.role==='host'&&game?.phase==='upgrade'&&game.upgradeChooser===1){applyUpgrade(d.choice);return;}
  if(d.type==='act'&&net.role==='host'&&game?.phase==='active'){
@@ -993,7 +1052,7 @@ function onNetMessage(d){
   if(SHOOTER_MODE&&game.phase==='roundwin'&&oldPhase!=='roundwin'){
    flashCallout(game.players[game.roundWinner].name+' TURU KAZANDI!',1.3);snd('eliminate',.35);
   }
-  if(oldRound!==game.round){$('mapName').textContent=game.map.name;hideOverlay();}
+  if(oldRound!==game.round){$('mapName').textContent=game.map.name;if(game.phase!=='weapon-select')hideOverlay();}
   if(oldChaos!==game.chaos&&game.chaos&&CHAOS[game.chaos])flashCallout(CHAOS[game.chaos].name,2);
   if(game.phase!==oldPhase){if(SHOOTER_MODE&&game.phase==='finished'){
       const winner=game.score.indexOf(Math.max(...game.score));
@@ -1005,6 +1064,7 @@ function onNetMessage(d){
      const winner=game.score[0]>game.score[1]?0:1;
      showOverlay('MAÇ BİTTİ','🏆',game.players[winner].name+' KAZANDI!','Skor '+game.score.join(' – ')+'. Yeni maç için oda kurucusu rövanş başlatabilir.',[{label:'ANA MENÜ',action:returnMenu}]);snd('win',.5);
    }else if(game.phase==='countdown'||game.phase==='active'){hideOverlay();}}
+  if(SHOOTER_MODE&&game.phase==='weapon-select'&&!net.hostAway)syncRoundWeaponPicker();
   $('player0Name').textContent=game.players[0].name;$('player1Name').textContent=game.players[1].name;
   return;
  }
@@ -1045,7 +1105,8 @@ function init(){
  $('createRoom').addEventListener('click',()=>{if(!canOnline())return;options.nickname=$('nick').value.trim().slice(0,14)||'KAOS KRALI';try{localStorage.setItem('bomba-nickname',options.nickname)}catch{}connectRoom({type:'create',name:options.nickname,rules:options.rules})});
  $('joinRoom').addEventListener('click',()=>joinFromInput());$('joinCode').addEventListener('keydown',e=>{if(e.key==='Enter')joinFromInput()});
  $('copyInvite').addEventListener('click',async()=>{const url=$('roomLink').value;try{await navigator.clipboard.writeText(url);roomMessage('Davet bağlantısı kopyalandı! ✓')}catch{const el=$('roomLink');el.select();document.execCommand('copy');roomMessage('Bağlantı seçildi; Ctrl+C ile kopyala.')}});
- $('hostStart').addEventListener('click',()=>{if(net.role==='host'&&net.players.length===requiredPlayers()&&net.players.every(p=>p.online))netSend({type:'start'})});
+ $('hostStart').addEventListener('click',()=>{if(net.role==='host'&&net.players.length===requiredPlayers()&&net.players.every(p=>p.online&&p.ready))netSend({type:'start'})});
+ $('guestReady').addEventListener('click',()=>{if(net.role==='guest'&&net.connected&&net.code)netSend({type:'ready',ready:true});});
  $('leaveRoom').addEventListener('click',()=>{leaveOnline();roomMessage('Odadan ayrıldın. Yeni oda için harita ve mod seçebilirsin.');$('roomReady').classList.add('hidden')});
  $('lobbyChatForm').addEventListener('submit',e=>{e.preventDefault();sendChat($('lobbyChatInput'));});$('gameChatForm').addEventListener('submit',e=>{e.preventDefault();sendChat($('gameChatInput'));closeGameChat();});
  $('chatToggle').addEventListener('click',toggleGameChat);$('chatClose').addEventListener('click',closeGameChat);

@@ -34,6 +34,7 @@ test('four-player 2v2 rooms preserve player slots and relay snapshots/actions se
   const result=await ready;assert.equal(result.slot,i);
   assert.equal(result.rules.battleMode,'team');
  }
+ for(let i=1;i<4;i++){const ready=wait(h,'presence');send(players[i],{type:'ready',ready:true});await ready;}
  const full=await socket(),error=wait(full,'error');
  send(full,{type:'join',code:room.code,name:'EXTRA'});
  assert.match((await error).message,/dolu/);

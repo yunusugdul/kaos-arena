@@ -28,6 +28,7 @@ test('lobby/game chat is relayed, sanitized, throttled and histories sent on res
 test('host pause/unpause broadcasts to other player, guest cannot spoof host pause',async()=>{
  const a=await client();const w=wait(a,d=>d.type==='joined');send(a,{type:'create'});const room=await w;
  const b=await client();const p=wait(b,d=>d.type==='joined');send(b,{type:'join',code:room.code});await p;
+ const ready=wait(a,d=>d.type==='presence'&&d.players[1]?.ready);send(b,{type:'ready',ready:true});await ready;
  const start=wait(b,d=>d.type==='start');send(a,{type:'start'});await start;
  const paused=wait(b,d=>d.type==='host_pause'&&d.paused===true);send(a,{type:'host_pause',paused:true});assert.equal((await paused).paused,true);
  const notResumed=wait(b,d=>d.type==='host_pause'&&d.paused===false,350).then(()=>true,()=>false);send(b,{type:'host_pause',paused:false});assert.equal(await notResumed,false);

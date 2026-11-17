@@ -16,6 +16,7 @@ test('rematch sends new match id to BOTH members and rejects stale first-match f
  try{
   const host=await connect(url,sockets),joined=wait(host,d=>d.type==='joined');send(host,{type:'create',name:'Host'});const room=await joined;
   const guest=await connect(url,sockets),guestJoined=wait(guest,d=>d.type==='joined');send(guest,{type:'join',code:room.code,name:'Guest'});await guestJoined;
+  const ready=wait(host,d=>d.type==='presence'&&d.players[1]?.ready);send(guest,{type:'ready',ready:true});await ready;
   const firstHost=wait(host,d=>d.type==='start'),firstGuest=wait(guest,d=>d.type==='start');send(host,{type:'start'});const [a,b]=await Promise.all([firstHost,firstGuest]);assert.equal(a.matchId,1);assert.equal(b.matchId,1);
   const secondHost=wait(host,d=>d.type==='start'),secondGuest=wait(guest,d=>d.type==='start');send(host,{type:'rematch'});const [c,d]=await Promise.all([secondHost,secondGuest]);assert.equal(c.matchId,2);assert.equal(d.matchId,2);assert.equal(c.rematch,true);assert.equal(d.rematch,true);
   send(host,{type:'state',matchId:1,seq:77,state:{players:[{},{}],score:[2,0],map:{name:'OLD'},phase:'finished'}});

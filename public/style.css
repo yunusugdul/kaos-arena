@@ -248,3 +248,10 @@ body.shooter-mode.four-player-match .scoreline{display:none!important}
 .multi-target{font-size:11px;letter-spacing:.09em;font-weight:900;text-align:center;color:#d8efff;margin:4px 0 9px;padding:4px 9px;background:#151b32;border-radius:7px}
 .multi-target.hidden{display:none!important}
 
+
+/* Per-round weapon choice and lobby guest confirmation */
+#guestReady:disabled{background:#344033;border-color:#61734d;color:#d8fd52;opacity:.88;cursor:default}
+body.is-playing .overlay-foot.weapon-pick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;width:100%;margin-top:15px}
+body.is-playing .overlay-foot.weapon-pick button{width:100%;max-width:none;min-height:46px;white-space:normal;font-size:12px;padding:11px 9px}
+body.is-playing .overlay-window:has(.weapon-pick){max-height:90dvh;overflow-y:auto}
+@media(max-width:520px){body.is-playing .overlay-foot.weapon-pick{grid-template-columns:1fr}body.is-playing .overlay-foot.weapon-pick button{min-height:38px;padding:8px}}

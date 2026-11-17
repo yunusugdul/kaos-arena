@@ -15,6 +15,7 @@ test('create > join > start > state/input/actions > reconnect > leave', async()=
  const host=await openClient();const made=waitMessage(host,d=>d.type==='joined');send(host,{type:'create',name:'KURUCU'});const created=await made;
  assert.equal(created.slot,0);assert.match(created.code,/^[A-Z2-9]{6}$/);
  const guest=await openClient();const joined=waitMessage(guest,d=>d.type==='joined');send(guest,{type:'join',code:created.code,name:'MİSAFİR'});const j=await joined;assert.equal(j.slot,1);
+ const ready=waitMessage(host,d=>d.type==='presence'&&d.players[1]?.ready);send(guest,{type:'ready',ready:true});await ready;
  const startHost=waitMessage(host,d=>d.type==='start'),startGuest=waitMessage(guest,d=>d.type==='start');send(host,{type:'start'});const [firstStart,guestStart]=await Promise.all([startHost,startGuest]);assert.equal(firstStart.matchId,guestStart.matchId);
  const snap=waitMessage(guest,d=>d.type==='state');send(host,{type:'state',matchId:firstStart.matchId,state:{players:[{name:'a'},{name:'b'}],score:[0,0],round:1}});assert.equal((await snap).state.round,1);
  const incoming=waitMessage(host,d=>d.type==='input');send(guest,{type:'input',x:999,y:-999,aimX:3,aimY:4,aimActive:true});const r=await incoming;assert.equal(r.x,1);assert.equal(r.y,-1);
@@ -35,6 +36,7 @@ test('custom room rules are validated, shared and remain fixed',async()=>{
  const a=await joined;assert.equal(a.rules.arena,'2');assert.equal(a.rules.rounds,7);assert.equal(a.rules.cards,false);assert.equal(a.rules.upgrades,true);
  const g=await openClient();const gJoin=waitMessage(g,d=>d.type==='joined');send(g,{type:'join',code:a.code,name:'OYUNCU'});
  const b=await gJoin;assert.deepEqual(b.rules,a.rules);
+ const ready=waitMessage(h,d=>d.type==='presence'&&d.players[1]?.ready);send(g,{type:'ready',ready:true});await ready;
  const started=waitMessage(g,d=>d.type==='start');send(h,{type:'start'});await started;
  const received=waitMessage(h,d=>d.type==='upgrade');send(g,{type:'upgrade',choice:'magnet'});assert.equal((await received).choice,'magnet');
  send(h,{type:'leave'});
