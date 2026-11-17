@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b19">
+<meta name="description" content="Kaos Arena: online veya bota karşı oynanan, can barlı ve silahlı 3D arena düellosu.">
+<title>KAOS ARENA — Silahlı Arena Çatışması</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="shooter-mode">
+<div class="ambient ambient-a"></div><div class="ambient ambient-b"></div><div class="noise"></div>
+<header class="site-head wrap">
+  <a class="logo" href="#" id="logoHome" aria-label="Kaos Arena ana menü"><span class="logo-icon">🔫</span><span>KAOS<span>ARENA</span><small>3D ONLINE</small></span></a>
+  <div class="head-right"><span class="status-dot"></span><span>ARENA ÇATIŞMASI • ONLINE</span><button class="head-audio" id="muteTop" title="Sesi aç/kapat" aria-label="Sesi aç/kapat">🔊</button></div>
+</header>
+<main>
+<section id="landing" class="landing wrap">
+  <div class="hero">
+    <div class="eyebrow"><span>✳</span> ESKİ KURALLARI UNUT <span>✳</span></div>
+    <h1>KAOS<br><em>ARENA<span>!</span></em></h1>
+    <div class="remix-ribbon">SİLAHINI KUŞAN, ARENAYA GİR! <span>↗</span></div>
+    <p class="hero-text">3D arenada siperleri kullan, rakibine nişan al ve ateş et. <b>100 can, gerçek zamanlı mermiler, yeniden doldurma ve hızlı çatışma.</b> 1v1, 2v2 ve herkes tek modlarında kazanmak için mücadele et!</p>
+    <div class="feature-list">
+      <div class="feature"><span class="feature-icon pink">🔫</span><div><b>DÖRT FARKLI SİLAH</b><small>Tabanca, tüfek, pompalı ve keskin nişancı.</small></div></div>
+      <div class="feature"><span class="feature-icon purple">♥</span><div><b>100 CAN + GÜÇLENDİRMELER</b><small>Sağlık, hız, kalkan ve hasar takviyeleri topla.</small></div></div>
+      <div class="feature"><span class="feature-icon lime">⚡</span><div><b>ELEME EFEKTLERİ + 5 ARENA</b><small>Duvar arkası taktik, hızlı hareket ve haritaya özel atmosfer.</small></div></div>
+    </div>
+    <div class="home-how"><h2>🎮 NASIL OYNANIR?</h2>
+      <p>Karakterinin elinde silah var. Sol fare tuşuna basılı tutarak ateş et, mermi bitince şarjörünü değiştir. <b>WASD</b> hareket, <b>Space</b> atılma, <b>E</b> kısa süreli kalkan, <b>R</b> yeniden doldurma. Kaos Arena'nın beş arenasında 3, 5 veya 7 turluk maç yap. 1v1, 2v2 ve herkes tek modlarında arkadaşlarınla çatış! </p>
+      <h3>KLAVYE KONTROLLERİ</h3><div class="home-keys">
+        <span><kbd>W A S D</kbd> Hareket</span><span><kbd>SOL TIK</kbd> Ateş et</span>
+        <span><kbd>SPACE</kbd> Atıl</span><span><kbd>E</kbd> Kalkan</span>
+        <span><kbd>R</kbd> Şarjör</span><span><kbd>ENTER</kbd> Sohbet</span></div>
+      <p class="subtle">Fareyle nişan al. Şarjörü ve can barını takip et. Online modda arkadaşınla aynı arenada savaşırsın.</p>
+    </div>
+    <div class="lower-chips"><span>♥ 100 CAN</span><span>🎯 1V1 • 2V2 • HERKES TEK</span><span>🆓 ÜCRETSİZ</span></div>
+  </div>
+  <div class="right-column">
+    <div class="preview" aria-hidden="true"><div class="preview-meta"><b>OYUNA GÖZ AT</b><span>ARENA 01 / NEON PARK</span></div><div class="preview-field"><span class="pglow"></span><div class="field-wall fw-a"></div><div class="field-wall fw-b"></div><div class="field-orb orb-a">😈</div><div class="preview-shot"><span class="shot-ball">🔫</span></div><div class="field-orb orb-b">👾</div><span class="preview-flash">✷</span></div><div class="preview-caption"><span>SİLAH + CAN + KALKAN</span><span class="signal">● READY</span></div></div>
+    <div class="play-card"><div class="card-top"><div><small>ÇATIŞMA AYARLARI</small><h2>SAVAŞA GİR.</h2></div><span class="big-sticker">⚡</span></div>
+      <label class="form-label" for="nick">OYUNCU ADI</label><input id="nick" maxlength="14" value="KAOS KRALI" spellcheck="false" autocomplete="off">
+      <div class="form-label mode-label">OYUN MODU</div><div class="mode-grid"><button class="mode-btn selected" data-mode="bot" aria-pressed="true"><b>🤖 TEK OYUNCU</b><small>Yapay zekâya karşı</small></button><button class="mode-btn" data-mode="online" aria-pressed="false"><b>🌐 ONLINE DÜELLO</b>
+<small>Oda koduyla arkadaşına karşı</small></button></div>
+      <section class="rules-editor" id="rulesEditor" aria-label="Oda ve maç kuralları">
+ <div class="rules-heading"><b>🗺️ ORİJİNAL ARENALAR + MAÇ AYARLARI</b><small>Kaos Arena'nın beş klasik arenası. İstersen her tur farklı haritada savaş.</small></div>
+ <label for="rulesPreset">HAZIR OYUN TARZI</label><select id="rulesPreset"><option value="fusion">🔥 HEPSİ BİR ARADA (ÖNERİLEN)</option><option value="evolution">🎯 ÇATIŞMA</option><option value="party">⚡ ÇILGIN KAOS</option><option value="classic">🎯 KLASİK DÜELLO</option></select>
+ <div class="shooter-extra-settings"><label for="battleMode">OYUN MODU
+  <select id="battleMode"><option value="duel">⚔️ 1v1 DÜELLO</option>
+    <option value="team">🟦🟥 2v2 TAKIM SAVAŞI</option>
+    <option value="ffa">🎯 4 OYUNCU • HERKES TEK</option></select></label>
+  <label for="weaponChoice">SİLAH SEÇİMİ
+  <select id="weaponChoice"><option value="pistol">🔫 TABANCA • DENGELİ</option>
+    <option value="rifle">⚡ OTOMATİK TÜFEK • SERİ</option>
+    <option value="shotgun">💥 POMPALI • YAKIN MESAFE</option>
+    <option value="sniper">🎯 KESKİN NİŞANCI • TEK ATIŞ</option></select></label></div>
+ <p class="weapon-help" id="weaponHelp">Tabanca: 20 hasar, 16 mermi, hızlı atış.</p>
+ <div class="rules-columns"><label for="rulesArena">ARENA <select id="rulesArena"><option value="cycle">HER TUR FARKLI</option><option value="random">RASTGELE</option><option value="0">NEON PARK</option><option value="1">BUZ LABİRENTİ</option><option value="2">PORTAL PARTİSİ</option><option value="3">SEK SEK</option><option value="4">SON ŞANS</option></select></label><label for="rulesRounds">MAÇ / TUR SAYISI <select id="rulesRounds"><option value="3">3 TUR</option><option selected value="5">5 TUR</option><option value="7">7 TUR</option></select></label></div>
+ <div class="rules-toggles"><label><input id="rulesUpgrades" type="checkbox" checked><span>🧬 Bomba Evrimi <small>Kaybedene geliştirme seçimi</small></span></label><label><input id="rulesChaos" type="checkbox" checked><span>⚡ Kaos olayları <small>Turbo sürprizi</small></span></label><label><input id="rulesCards" type="checkbox" checked><span>✦ Güç kartları <small>Işınlanma, dondurma, kalkan</small></span></label><label><input id="rulesPanic" type="checkbox" checked><span>🔥 Son 5 saniye <small>Panik hızı +%12</small></span></label></div>
+ <label class="persistence-field" for="rulesPersistence">🧬 GELİŞTİRMELERİN SÜRESİ <select id="rulesPersistence"><option value="match">MAÇ BOYUNCA BİRİKSİN (ÖNERİLEN)</option><option value="round">HER TUR SIFIRLANSIN</option></select></label>
+ <p class="rules-summary" id="selectedRules"></p>
+ </section>
+ <div class="online-room hidden" id="onlineRoom">
+  <div class="room-intro"><b>🌐 ODANI HEMEN KUR</b><small>Kuralları aşağıdan değiştirebilirsin. <span id="roomRulePreview">Varsayılan: Hepsi Bir Arada</span></small></div>
+  <div class="room-actions"><button id="createRoom" class="room-primary">＋ ODA KUR</button><span>VEYA</span><div class="join-fields"><input id="joinCode" maxlength="6" placeholder="ODA KODU" aria-label="Oda kodu" autocomplete="off"><button id="joinRoom">KATIL →</button></div></div>
+  <p class="room-message" id="roomMessage" role="status">Oda kurulunca kodu veya bağlantıyı arkadaşına gönder.</p>
+  <div class="room-ready hidden" id="roomReady"><div class="room-code-head"><span>ODA KODU</span><strong id="roomCode">——</strong></div><div class="invite-row"><input id="roomLink" aria-label="Davet bağlantısı" readonly><button id="copyInvite">KOPYALA</button></div><div id="roomPlayers" class="room-players"></div><section class="room-chat"><div class="chat-title">💬 ODA SOHBETİ <small>Odadaki oyuncular</small></div><div id="lobbyChatMessages" class="chat-messages" aria-live="polite"><p class="chat-empty">Mesajlar burada görünecek.</p></div><form id="lobbyChatForm" class="chat-send"><input id="lobbyChatInput" maxlength="180" placeholder="Mesaj yaz…" autocomplete="off" aria-label="Oda sohbet mesajı"><button type="submit">GÖNDER</button></form></section><button id="hostStart" class="room-primary hidden" disabled>OYUNCULAR BEKLENİYOR…</button><button id="leaveRoom" class="room-leave">← ODADAN AYRIL</button></div>
+ </div>
+ <div class="diff-row" id="difficultyRow"><span>ZORLUK</span><div class="diff-buttons"><button data-diff="easy">RAHAT</button><button class="selected" data-diff="normal">DENGELİ</button><button data-diff="hard">ÇILGIN</button></div></div>
+      <button id="startBtn" class="start-btn"><span>🔫</span><span>SAVAŞI BAŞLAT</span><span>↗</span></button><div class="play-foot"><span>✓ Kurulum yok</span><span>✓ Bot modunda internetsiz</span><span>✓ Online odalar ücretsiz</span></div>
+    </div>
+  </div>
+  <div class="section-tail"><span class="tail-line"></span><span>HER İSABET BİR HİKÂYE</span><span class="tail-line"></span></div>
+</section>
+<section id="gameScreen" class="game-screen wrap hidden" aria-label="Oyun ekranı">
+  <div class="game-nav"><button id="backBtn" class="nav-button">← MENÜ</button><div class="game-identity"><span>KAOS ARENASI</span><b id="mapName">NEON PARK</b></div><div class="nav-actions"><button class="nav-button" id="chatToggle" aria-expanded="false" aria-controls="gameChatPanel">💬 ENTER • SOHBET <span id="chatUnread" class="chat-unread hidden">0</span></button><button class="nav-button" id="helpBtn">ⓘ BİLGİ</button><button class="nav-button" id="fullscreenBtn" title="Tam ekran">⛶ TAM EKRAN</button><button id="pauseBtn" class="nav-button">Ⅱ DURAKLAT</button></div></div>
+
+  <div class="scoreline"><div id="scoreBox0" class="scorebox p0"><div class="profile-emoji">😈</div><div class="profile-name"><b id="player0Name">SEN</b><span id="player0Status">HAZIR</span></div><strong id="score0">0</strong></div><div class="timerbox"><div class="timer-meta"><span id="roundLabel">TUR 1 / 5</span><span id="fuseLabel">MAÇ TURU</span></div><div class="timer-main"><span class="timer-icon" id="timerIcon">🎯</span><span id="timerDigits">5</span><small>TUR</small></div></div><div id="scoreBox1" class="scorebox p1"><strong id="score1">0</strong><div class="profile-name"><b id="player1Name">RAKİP</b><span id="player1Status">HAZIR</span></div><div class="profile-emoji">👾</div></div></div>
+  <div id="multiTarget" class="multi-target hidden"></div>
+  <div id="multiScore" class="multi-score hidden" aria-label="Dört oyuncunun can ve skor tablosu"></div>
+  <div class="fuse-container" title="Çatışmada zaman sınırı yok"><div class="fuse-track"><div id="timerFill" class="fuse-burning"></div><span id="fuseSpark" class="fuse-spark" aria-hidden="true">🔥</span></div></div>
+ <div id="arenaStage" class="arena-stage"><aside id="gameChatPanel" class="arena-chat hidden" aria-label="Maç sohbeti"><div id="gameChatMessages" class="arena-chat-feed" aria-live="polite"></div><form id="gameChatForm" class="arena-chat-form hidden"><input id="gameChatInput" maxlength="180" placeholder="Mesaj yaz, Enter ile gönder…" autocomplete="off" aria-label="Maç sohbet mesajı"><button type="submit" aria-label="Mesajı gönder">↵</button><button type="button" id="chatClose" aria-label="Sohbeti kapat">✕</button></form><span class="arena-chat-hint">ENTER · SOHBET</span></aside><div class="arena-shell"><canvas id="arena" width="1000" height="562" aria-label="3D arena: hareket, silahla ateş etme, kalkan ve atılma"></canvas><div class="arena-overlay hidden" id="overlay" role="dialog" aria-live="polite"><div class="overlay-window"><span id="overlayEyebrow" class="overlay-eyebrow">TUR BAŞLIYOR</span><div id="overlayIcon" class="overlay-icon">🔫</div><h2 id="overlayTitle">HAZIR MISIN?</h2><p id="overlayDesc">Ateş etmek için sol fare tuşunu basılı tut.</p><div id="overlayFoot" class="overlay-foot"></div></div></div><div class="event-callout hidden" id="eventCallout">⚡ TURBO MOD</div><div class="floating-toast" id="toast" aria-live="polite"></div>
+    <div class="touch-controls" id="touchControls"><div id="joystick" class="joystick"><div id="joystickStick" class="joystick-stick"></div></div><div class="touch-buttons"><button id="touchSkill" class="touch-button skill">↻<small>ŞARJÖR</small></button><button id="touchParry" class="touch-button parry">🛡️<small>KALKAN</small></button><button id="touchDash" class="touch-button dash">➚<small>ATIL</small></button><button id="touchThrow" class="touch-button throw">🔫<small>ATEŞ</small></button></div></div>
+  </div></div>
+  <div class="bottom-hud"><div class="combat-state"><div id="bombStatus" class="bomb-status">🔫 SİLAH HAZIR</div><span id="tipText">Sol tık ile ateş et. R ile şarjör değiştir.</span></div><div class="ability-bars"><div class="ability"><div class="ability-key" id="keyThrow">SOL TIK</div><div><b>MERMİ</b><div class="meter"><span id="throwMeter"></span></div></div></div><div class="ability"><div class="ability-key" id="keyDash">SPACE</div><div><b>ATIL</b><div class="meter"><span id="dashMeter"></span></div></div></div><div class="ability"><div class="ability-key" id="keyParry">E</div><div><b>KALKAN</b><div class="meter"><span id="parryMeter"></span></div></div></div><div class="ability special"><div class="ability-key" id="keyPower">Q</div><div><b id="cardName">ŞARJÖR</b><div class="meter"><span id="cardMeter"></span></div></div></div></div></div>
+  <div class="game-bottom"><div class="instruction" id="controlsHint"><b>WASD</b> hareket · <b>SOL TIK</b> ateş · <b>SPACE</b> atıl · <b>E</b> kalkan · <b>R</b> şarjör</div><div class="game-mode-pill" id="modePill">🤖 YAPAY ZEKÂ</div></div>
+</section>
+</main>
+<div id="infoDialog" class="info-dialog hidden" role="dialog" aria-modal="true" aria-label="Oynanış ve kontroller" aria-hidden="true"><div class="info-card"><div class="info-top"><strong>ⓘ OYUN REHBERİ</strong><button id="infoClose" aria-label="Kapat">✕</button></div>
+  <h2>KAOS ARENA</h2>
+  <p>100 canla arenaya gir. Maçtan önce dört silahtan birini seç. Sol tıkla ateş et, R ile şarjör değiştir. Silahların hasarı, menzili ve atış hızları farklıdır. 1v1'de her eleme bir tur kazandırır; 2v2 ve herkes tek modlarında seçilen eleme hedefine ulaşan kazanır.</p>
+  <div class="info-steps"><p><b>🔫 SİLAH</b> Sol tık basılıyken seri şekilde ateş eder. Mermiler engellere çarpar. Mermi bitince otomatik şarjör değiştirilir.</p>
+  <p><b>♥ CAN</b> Üstteki barlar canını gösterir. 1v1'de elenirsen turu kaybedersin; 2v2 ve herkes tek modlarında kısa sürede yeniden doğarsın.</p>
+  <p><b>⚡ GÜÇLER</b> Arenada beliren sağlık, hız, kalkan ve hasar takviyelerini topla. Her biri ayrı görsel işaretle gösterilir.</p>
+  <p><b>🛡️ KALKAN</b> E ile kısa süreli mermi koruması. <b>➚ ATIL</b> Space ile hızlı kaç.</p>
+  <p><b>❄️ KAR</b> Buz Labirenti'ndeki kar alanları üzerinden geçerken hızın yarıya iner.</p>
+  <p><b>💬 SOHBET</b> Online maçta Enter ile mesaj penceresini açabilir ve arkadaşınla yazışabilirsin. Tam ekranda 4 saniye yeni mesaj gelmezse sohbet otomatik gizlenir.</p></div>
+  <div class="info-keys"><span><kbd>W A S D</kbd> Hareket</span><span><kbd>SOL TIK</kbd> Ateş</span><span><kbd>SPACE</kbd> Atıl</span><span><kbd>E</kbd> Kalkan</span><span><kbd>R</kbd> Şarjör</span><span><kbd>ENTER</kbd> Sohbet</span></div>
+  <small>Kaos Arena bağımsız bir çevrimiçi arena savaş oyunudur.</small><button id="infoDone" class="room-primary">OYUNA DÖN →</button>
+</div></div>
+<footer class="footer wrap"><span>© 2026 KAOS ARENA</span><span>ARENA SAVAŞLARI BAŞLADI. <b>🔫</b></span></footer>
+<script type="importmap">{"imports":{"three":"/vendor/three.module.js","three/addons/":"/vendor/addons/"}}</script>
+<script src="/game.js" defer></script>
+</body></html>

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: kaos-arena
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install --omit=dev && npm test && node --check public/game.js && node --check public/arena3d.js
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0

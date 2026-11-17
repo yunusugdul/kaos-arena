@@ -1,0 +1,17 @@
+{
+  "name": "kaos-arena",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kaos Arena: çok oyunculu 1v1, 2v2 ve herkes tek tarayıcı tabanlı silahlı arena oyunu",
+  "dependencies": {
+    "three": "0.160.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "license": "MIT"
+}
